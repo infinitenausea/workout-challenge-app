@@ -33,10 +33,23 @@ graph LR
 
 ```text
 workout-challenge-app/
+├── .agents/                     # Инструкции и промпты для AI-агентов команды разработки
+│   ├── analyst.md
+│   ├── architect.md
+│   ├── backend_dev.md
+│   ├── devops.md
+│   ├── frontend_dev.md
+│   ├── qa_engineer.md
+│   └── scrum_master.md
 ├── docs/
 │   ├── spec.md                  # Функциональная спецификация
-│   └── architecture.md          # Техническая архитектура (этот файл)
+│   ├── architecture.md          # Техническая архитектура (этот файл)
+│   ├── kanban.md                # Канбан-доска проекта
+│   ├── tasks_backend.md         # Задачи для бэкенд-разработки
+│   ├── tasks_frontend.md        # Задачи для фронтенд-разработки
+│   └── tasks_qa.md              # Задачи и тест-кейсы для тестирования (QA)
 ├── docker-compose.yml           # Конфигурация для запуска PostgreSQL
+├── README.md                    # Краткое описание проекта и стек технологий
 ├── backend/
 │   ├── main.go                  # Точка входа приложения Go
 │   ├── go.mod                   
@@ -60,8 +73,8 @@ workout-challenge-app/
 │   │       ├── dashboard/
 │   │       ├── challenge/
 │   │       └── ui/              # Общие UI элементы (модалки, тосты)
-
 ```
+
 
 ---
 
