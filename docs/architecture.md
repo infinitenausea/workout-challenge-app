@@ -29,6 +29,7 @@ graph LR
 
 ## 2. Directory Tree (Дерево директорий)
 
+```
 workout-challenge-app/
 ├── .agents/                     # Инструкции и промпты для AI-агентов команды разработки
 │   ├── analyst.md
@@ -39,38 +40,50 @@ workout-challenge-app/
 │   ├── qa_engineer.md
 │   └── scrum_master.md
 ├── docs/
+│   ├── completed_sprints/       # Отчеты о завершенных спринтах
+│   │   ├── sprint_1.md
+│   │   ├── sprint_2.md
+│   │   ├── sprint_3.md
+│   │   ├── sprint_4.md
+│   │   └── sprint_5.md
 │   ├── spec.md                  # Функциональная спецификация
 │   ├── architecture.md          # Техническая архитектура (этот файл)
 │   ├── kanban.md                # Канбан-доска проекта
 │   ├── tasks_backend.md         # Задачи для бэкенд-разработки
 │   ├── tasks_frontend.md        # Задачи для фронтенд-разработки
-│   └── tasks_qa.md              # Задачи и тест-кейсы для тестирования (QA)
-├── docker-compose.yml           # Конфигурация для запуска PostgreSQL
-├── README.md                    # Краткое описание проекта и стек технологий
-├── backend/
-│   ├── main.go                  # Точка входа приложения Go
-│   ├── go.mod                   
-│   ├── go.sum
-│   ├── internal/
-│   │   ├── config/              # Конфигурация приложения
-│   │   ├── database/            # Подключение к БД, транзакции
-│   │   ├── models/              # Структуры данных (Go structs)
-│   │   ├── handlers/            # Обработчики API запросов (эндпоинты)
-│   │   └── workers/             # Фоновые процессы (пересчет failed статусов)
+│   ├── tasks_devops.md          # Задачи для DevOps
+│   └── tasks_qa.md              # Задачи и тест-кейсы для QA
 ├── frontend/
 │   ├── index.html               # Единственная HTML страница (SPA)
 │   ├── css/
-│   │   └── main.css             # Глобальные стили и CSS-переменные Telegram
-│   ├── js/
-│   │   ├── app.js               # Инициализация приложения
-│   │   ├── router.js            # SPA-роутер
-│   │   ├── store.js             # Pub-Sub стейт-менеджер
-│   │   ├── api.js               # API Клиент 
-│   │   └── components/          # Компоненты UI 
-│   │       ├── dashboard/
-│   │       ├── challenge/
-│   │       └── ui/              # Общие UI элементы (модалки, тосты)
-
+│   │   └── main.css             # Глобальные стили и CSS-переменные
+│   └── js/
+│       ├── api.js               # Клиент для взаимодействия с API
+│       ├── app.js               # Инициализация SPA
+│       ├── router.js            # Роутер на стороне клиента
+│       ├── store.js             # Pub-Sub менеджер состояния (Store)
+│       └── components/          # Компоненты UI
+│           ├── challenge/       # Компоненты отображения челленджей
+│           ├── dashboard/       # Компоненты главного экрана
+│           └── ui/              # Общие элементы UI (модальные окна, уведомления)
+├── internal/                    # Внутренний код бэкенда на Go
+│   ├── config/                  # Конфигурация приложения
+│   ├── database/                # Инициализация БД и SQL-запросы
+│   ├── handlers/                # Обработчики API-эндпоинтов
+│   ├── models/                  # Структуры данных (модели БД)
+│   └── workers/                 # Фоновые задачи (воркеры, cron)
+├── tests/                       # Автоматизированные тесты (e2e Playwright)
+│   └── sprint5_failed_status.spec.js
+├── docker-compose.yml           # Конфигурация Docker Compose для PostgreSQL
+├── .env                         # Файл переменных окружения (локальный)
+├── .env.example                 # Пример файла переменных окружения
+├── .gitignore                   # Настройки игнорирования Git
+├── README.md                    # Краткое описание и инструкция по запуску
+├── go.mod                       # Модуль Go
+├── go.sum                       # Контрольные суммы Go зависимостей
+├── main.go                      # Точка входа в backend-сервер
+└── package.json                 # Настройки npm/тестов
+```
 
 ---
 

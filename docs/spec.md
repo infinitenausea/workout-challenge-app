@@ -15,10 +15,69 @@
 1. **MVP (Локальный запуск):** 
    * Single-user режим, но **архитектурно закладывается multi-user** (во все таблицы сразу добавляется `user_id`, в MVP хардкодится как `default_user_1`, чтобы избежать переписывания БД в будущем).
    * **Frontend:** SPA на Vanilla HTML/JS/CSS.
-   * **Backend:** Легковесный API сервер (Node.js/Express или Go) с базой данных (SQLite/PostgreSQL в Docker).
+   * **Backend:** Легковесный API сервер на Go с базой данных (PostgreSQL в Docker).
    * Взаимодействие через REST API.
-2. **Бета-тестирование (Firebase):** Хостинг фронтенда и миграция бэкенда на Firebase.
-3. **Интеграция с Telegram:** Обертка фронтенда в Telegram Mini App с авторизацией через Telegram WebApp API (здесь хардкод `user_id` заменится на реальный Telegram ID).
+2. **Интеграция с Telegram:** Обертка фронтенда в Telegram Mini App с авторизацией через Telegram WebApp API (здесь хардкод `user_id` заменится на реальный Telegram ID).
+
+---
+
+## 1.4 Directory Tree (Дерево директорий)
+
+```
+workout-challenge-app/
+├── .agents/                     # Инструкции и промпты для AI-агентов команды разработки
+│   ├── analyst.md
+│   ├── architect.md
+│   ├── backend_dev.md
+│   ├── devops.md
+│   ├── frontend_dev.md
+│   ├── qa_engineer.md
+│   └── scrum_master.md
+├── docs/
+│   ├── completed_sprints/       # Отчеты о завершенных спринтах
+│   │   ├── sprint_1.md
+│   │   ├── sprint_2.md
+│   │   ├── sprint_3.md
+│   │   ├── sprint_4.md
+│   │   └── sprint_5.md
+│   ├── spec.md                  # Функциональная спецификация (этот файл)
+│   ├── architecture.md          # Техническая архитектура
+│   ├── kanban.md                # Канбан-доска проекта
+│   ├── tasks_backend.md         # Задачи для бэкенд-разработки
+│   ├── tasks_frontend.md        # Задачи для фронтенд-разработки
+│   ├── tasks_devops.md          # Задачи для DevOps
+│   └── tasks_qa.md              # Задачи и тест-кейсы для QA
+├── frontend/
+│   ├── index.html               # Единственная HTML страница (SPA)
+│   ├── css/
+│   │   └── main.css             # Глобальные стили и CSS-переменные
+│   └── js/
+│       ├── api.js               # Клиент для взаимодействия с API
+│       ├── app.js               # Инициализация SPA
+│       ├── router.js            # Роутер на стороне клиента
+│       ├── store.js             # Pub-Sub менеджер состояния (Store)
+│       └── components/          # Компоненты UI
+│           ├── challenge/       # Компоненты отображения челленджей
+│           ├── dashboard/       # Компоненты главного экрана
+│           └── ui/              # Общие элементы UI (модальные окна, уведомления)
+├── internal/                    # Внутренний код бэкенда на Go
+│   ├── config/                  # Конфигурация приложения
+│   ├── database/                # Инициализация БД и SQL-запросы
+│   ├── handlers/                # Обработчики API-эндпоинтов
+│   ├── models/                  # Структуры данных (модели БД)
+│   └── workers/                 # Фоновые задачи (воркеры, cron)
+├── tests/                       # Автоматизированные тесты (e2e Playwright)
+│   └── sprint5_failed_status.spec.js
+├── docker-compose.yml           # Конфигурация Docker Compose для PostgreSQL
+├── .env                         # Файл переменных окружения (локальный)
+├── .env.example                 # Пример файла переменных окружения
+├── .gitignore                   # Настройки игнорирования Git
+├── README.md                    # Краткое описание и инструкция по запуску
+├── go.mod                       # Модуль Go
+├── go.sum                       # Контрольные суммы Go зависимостей
+├── main.go                      # Точка входа в backend-сервер
+└── package.json                 # Настройки npm/тестов
+```
 
 ---
 

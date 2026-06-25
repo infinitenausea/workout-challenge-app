@@ -157,7 +157,7 @@ export class ChallengeDetail {
       <div class="challenge-detail">
         <div class="challenge-detail-header">
           <button id="back-btn" class="secondary btn-small">← Назад</button>
-          <span class="challenge-status">${c.status === 'active' ? 'Активен' : c.status === 'completed' ? 'Завершен' : 'Провален'}</span>
+          <span class="challenge-status ${c.status === 'failed' ? 'badge-failed' : ''}">${c.status === 'active' ? 'Активен' : c.status === 'completed' ? 'Завершен' : 'Провален'}</span>
         </div>
 
         <div class="card">

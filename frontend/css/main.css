@@ -407,6 +407,11 @@ input:focus, select:focus, textarea:focus {
   animation: shrink 5s linear forwards;
 }
 
+.badge-failed {
+  background-color: var(--danger-color) !important;
+  color: white !important;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }

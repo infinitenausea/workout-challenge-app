@@ -7,6 +7,7 @@ import (
 	"workout-challenge-app/internal/config"
 	"workout-challenge-app/internal/database"
 	"workout-challenge-app/internal/handlers"
+	"workout-challenge-app/internal/workers"
 )
 
 func main() {
@@ -29,7 +30,11 @@ func main() {
 		log.Fatalf("Fatal: Database migrations failed: %v", err)
 	}
 
-	// 4. Start the HTTP server and setup routes
+	// 4. Start background workers
+	cronJob := workers.StartFailedChallengeWorker(db)
+	defer cronJob.Stop()
+
+	// 5. Start the HTTP server and setup routes
 	mux := http.NewServeMux()
 	
 	// Add a simple healthcheck endpoint

@@ -53,7 +53,7 @@ export class Dashboard {
           <div class="card challenge-card" data-id="${c.id}">
             <div class="challenge-header">
               <span class="challenge-title">${c.name}</span>
-              <span class="challenge-status">${c.status === 'active' ? 'Активен' : c.status}</span>
+              <span class="challenge-status ${c.status === 'failed' ? 'badge-failed' : ''}">${c.status === 'active' ? 'Активен' : c.status === 'completed' ? 'Завершен' : 'Провален'}</span>
             </div>
             <div class="challenge-dates">
               📅 ${startDateFormatted} — ${endDateFormatted}
