@@ -1,0 +1,521 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"testing"
+
+	"github.com/jackc/pgx/v5"
+)
+
+const (
+	baseURL = "http://localhost:8080"
+	defaultDSN = "postgres://postgres:postgres_secure_pass@localhost:5433/workout_tracker?sslmode=disable"
+)
+
+func getDBConn(t *testing.T) *pgx.Conn {
+	dsn := os.Getenv("DATABASE_DSN")
+	if dsn == "" {
+		dsn = defaultDSN
+	}
+	conn, err := pgx.Connect(context.Background(), dsn)
+	if err != nil {
+		t.Fatalf("Failed to connect to DB: %v", err)
+	}
+	return conn
+}
+
+func resetDatabase(t *testing.T, conn *pgx.Conn) {
+	ctx := context.Background()
+	_, err := conn.Exec(ctx, "TRUNCATE TABLE workouts, challenges, user_achievements, exercises RESTART IDENTITY CASCADE;")
+	if err != nil {
+		t.Fatalf("Failed to truncate tables: %v", err)
+	}
+
+	// Insert default exercises (let database assign IDs automatically)
+	_, err = conn.Exec(ctx, "INSERT INTO exercises (user_id, name, is_custom) VALUES ('default_user_1', 'Pushups', false);")
+	if err != nil {
+		t.Fatalf("Failed to insert default exercise: %v", err)
+	}
+	_, err = conn.Exec(ctx, "INSERT INTO exercises (user_id, name, is_custom) VALUES ('default_user_1', 'Squats', false);")
+	if err != nil {
+		t.Fatalf("Failed to insert default exercise 2: %v", err)
+	}
+
+	// Insert challenge 1 for default_user_1
+	_, err = conn.Exec(ctx, `
+		INSERT INTO challenges (user_id, name, exercise_id, target_value, current_progress, start_date, end_date, status)
+		VALUES ('default_user_1', 'Challenge 1', 1, 100, 0, '2026-06-01', '2026-07-01', 'active');
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert challenge 1: %v", err)
+	}
+}
+
+func sendRequest(t *testing.T, method, path string, userID string, body interface{}) (*http.Response, []byte) {
+	var bodyReader io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("Failed to marshal request body: %v", err)
+		}
+		bodyReader = bytes.NewReader(b)
+	}
+
+	req, err := http.NewRequest(method, baseURL+path, bodyReader)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if userID != "" {
+		req.Header.Set("X-User-Id", userID)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	return resp, respBody
+}
+
+func TestAPI_Sprint3(t *testing.T) {
+	conn := getDBConn(t)
+	defer conn.Close(context.Background())
+
+	t.Run("Reset DB", func(t *testing.T) {
+		resetDatabase(t, conn)
+	})
+
+	// TC-3.1 (Positive): Успешное добавление, проверка 201, unlocked_achievements: ["first_step"], обновление current_progress
+	var workout1ID int
+	t.Run("TC-3.1 Positive: Add workout", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        30,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/1/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData map[string]interface{}
+		if err := json.Unmarshal(body, &respData); err != nil {
+			t.Fatalf("Failed to unmarshal body: %v", err)
+		}
+
+		if respData["success"] != true {
+			t.Errorf("Expected success to be true, got %v", respData["success"])
+		}
+
+		unlocked, ok := respData["unlocked_achievements"].([]interface{})
+		if !ok || len(unlocked) != 1 || unlocked[0] != "first_step" {
+			t.Errorf("Expected unlocked_achievements to be ['first_step'], got %v", respData["unlocked_achievements"])
+		}
+
+		workout, ok := respData["workout"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("Expected workout in response, got nil")
+		}
+		workout1ID = int(workout["id"].(float64))
+		_ = workout1ID
+
+		// Check DB progress
+		var progress int
+		err := conn.QueryRow(context.Background(), "SELECT current_progress FROM challenges WHERE id = 1").Scan(&progress)
+		if err != nil {
+			t.Fatalf("Failed to query challenge: %v", err)
+		}
+		if progress != 30 {
+			t.Errorf("Expected current_progress to be 30, got %d", progress)
+		}
+	})
+
+	// TC-3.2 (Positive): Ачивка «Экватор» при достижении 50%
+	var workout2ID int
+	t.Run("TC-3.2 Positive: Equator achievement", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-26",
+			"value":        20,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/1/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData map[string]interface{}
+		if err := json.Unmarshal(body, &respData); err != nil {
+			t.Fatalf("Failed to unmarshal body: %v", err)
+		}
+
+		unlocked, ok := respData["unlocked_achievements"].([]interface{})
+		if !ok || len(unlocked) != 1 || unlocked[0] != "equator" {
+			t.Errorf("Expected unlocked_achievements to contain only 'equator', got %v", respData["unlocked_achievements"])
+		}
+
+		workout := respData["workout"].(map[string]interface{})
+		workout2ID = int(workout["id"].(float64))
+		_ = workout2ID
+
+		// Check DB
+		var progress int
+		err := conn.QueryRow(context.Background(), "SELECT current_progress FROM challenges WHERE id = 1").Scan(&progress)
+		if err != nil {
+			t.Fatalf("Failed to query challenge: %v", err)
+		}
+		if progress != 50 {
+			t.Errorf("Expected current_progress to be 50, got %d", progress)
+		}
+	})
+
+	// TC-3.3 (Positive): Ачивка «Герой» при 100% до дедлайна, status → completed
+	var workout3ID int
+	t.Run("TC-3.3 Positive: Hero achievement", func(t *testing.T) {
+		// Use June 29 to avoid triggering stability (since consecutive would be 25, 26, 27)
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-29",
+			"value":        50,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/1/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData map[string]interface{}
+		if err := json.Unmarshal(body, &respData); err != nil {
+			t.Fatalf("Failed to unmarshal body: %v", err)
+		}
+
+		unlocked, ok := respData["unlocked_achievements"].([]interface{})
+		if !ok || len(unlocked) != 1 || unlocked[0] != "hero" {
+			t.Errorf("Expected unlocked_achievements to contain only 'hero', got %v", respData["unlocked_achievements"])
+		}
+
+		workout := respData["workout"].(map[string]interface{})
+		workout3ID = int(workout["id"].(float64))
+
+		// Check DB
+		var progress int
+		var status string
+		err := conn.QueryRow(context.Background(), "SELECT current_progress, status FROM challenges WHERE id = 1").Scan(&progress, &status)
+		if err != nil {
+			t.Fatalf("Failed to query challenge: %v", err)
+		}
+		if progress != 100 {
+			t.Errorf("Expected current_progress to be 100, got %d", progress)
+		}
+		if status != "completed" {
+			t.Errorf("Expected status to be 'completed', got %s", status)
+		}
+	})
+
+	// TC-3.4 (Positive): Ачивка «Стабильность» при 3 днях подряд
+	t.Run("TC-3.4 Positive: Stability achievement", func(t *testing.T) {
+		// Create Challenge 2
+		c2Payload := map[string]interface{}{
+			"name":        "Challenge 2",
+			"exercise_id": 1,
+			"target_value": 100,
+			"start_date":  "2026-06-01T00:00:00Z",
+			"end_date":    "2026-07-01T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", c2Payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to create Challenge 2, status %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		// Currently the user has workouts on June 25, June 26, June 29.
+		// If we add workout on June 27, we now have June 25, 26, 27 which are 3 consecutive days!
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-27",
+			"value":        10,
+		}
+		resp, body = sendRequest(t, "POST", "/api/challenges/2/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+		
+		var respData map[string]interface{}
+		json.Unmarshal(body, &respData)
+		
+		unlocked, ok := respData["unlocked_achievements"].([]interface{})
+		found := false
+		if ok {
+			for _, val := range unlocked {
+				if val == "stability" {
+					found = true
+				}
+			}
+		}
+		if !found {
+			t.Errorf("Expected stability to be unlocked, got %v", respData["unlocked_achievements"])
+		}
+	})
+
+	// TC-3.5 (Negative): Отрицательное value → 400
+	t.Run("TC-3.5 Negative: Negative value", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        -10,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/2/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.6 (Negative): value = 0 → 400
+	t.Run("TC-3.6 Negative: Zero value", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        0,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/2/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.7 (Negative): Несуществующий челлендж → 400/404
+	t.Run("TC-3.7 Negative: Non-existent challenge", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        10,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/99999/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusBadRequest && resp.StatusCode != http.StatusNotFound {
+			t.Errorf("Expected status 400 or 404, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.8 (Negative): Завершённый челлендж → 400
+	t.Run("TC-3.8 Negative: Completed challenge", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        10,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/1/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.9 (Edge): Пустая дата → 400
+	t.Run("TC-3.9 Edge: Empty date", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"value": 10,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/2/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.10 (Edge): Ачивки не дублируются
+	t.Run("TC-3.10 Edge: Achievements don't duplicate", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-30",
+			"value":        10,
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges/2/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Errorf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData map[string]interface{}
+		if err := json.Unmarshal(body, &respData); err == nil {
+			if unlocked, ok := respData["unlocked_achievements"].([]interface{}); ok {
+				if len(unlocked) != 0 {
+					t.Errorf("Expected no new achievements unlocked, got %v", unlocked)
+				}
+			}
+		}
+	})
+
+	// TC-3.11 (Positive): Успешное удаление, current_progress уменьшился
+	t.Run("TC-3.11 Positive: Delete workout", func(t *testing.T) {
+		var progressBefore int
+		err := conn.QueryRow(context.Background(), "SELECT current_progress FROM challenges WHERE id = 2").Scan(&progressBefore)
+		if err != nil {
+			t.Fatalf("Failed to query challenge 2 progress: %v", err)
+		}
+
+		var wID int
+		var wVal int
+		err = conn.QueryRow(context.Background(), "SELECT id, value FROM workouts WHERE challenge_id = 2 LIMIT 1").Scan(&wID, &wVal)
+		if err != nil {
+			t.Fatalf("Failed to query workout from challenge 2: %v", err)
+		}
+
+		resp, body := sendRequest(t, "DELETE", fmt.Sprintf("/api/workouts/%d", wID), "default_user_1", nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData map[string]interface{}
+		json.Unmarshal(body, &respData)
+
+		if respData["success"] != true {
+			t.Errorf("Expected success to be true, got %v", respData["success"])
+		}
+
+		var progressAfter int
+		err = conn.QueryRow(context.Background(), "SELECT current_progress FROM challenges WHERE id = 2").Scan(&progressAfter)
+		if err != nil {
+			t.Fatalf("Failed to query challenge 2 progress after delete: %v", err)
+		}
+
+		if progressAfter != progressBefore-wVal {
+			t.Errorf("Expected progress to decrease by %d to %d, got %d", wVal, progressBefore-wVal, progressAfter)
+		}
+	})
+
+	// TC-3.12 (Positive): Каскадный откат completed → active
+	t.Run("TC-3.12 Positive: Cascade rollback completed -> active", func(t *testing.T) {
+		var statusBefore string
+		err := conn.QueryRow(context.Background(), "SELECT status FROM challenges WHERE id = 1").Scan(&statusBefore)
+		if err != nil {
+			t.Fatalf("Failed to query challenge 1: %v", err)
+		}
+		if statusBefore != "completed" {
+			t.Fatalf("Challenge 1 is not in 'completed' state, current state is: %s", statusBefore)
+		}
+
+		resp, body := sendRequest(t, "DELETE", fmt.Sprintf("/api/workouts/%d", workout3ID), "default_user_1", nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var statusAfter string
+		var progressAfter int
+		err = conn.QueryRow(context.Background(), "SELECT status, current_progress FROM challenges WHERE id = 1").Scan(&statusAfter, &progressAfter)
+		if err != nil {
+			t.Fatalf("Failed to query challenge 1: %v", err)
+		}
+
+		if statusAfter != "active" {
+			t.Errorf("Expected status to be 'active', got %s", statusAfter)
+		}
+		if progressAfter != 50 {
+			t.Errorf("Expected progress to be 50, got %d", progressAfter)
+		}
+	})
+
+	// TC-3.13 (Negative): Несуществующая тренировка → 404
+	t.Run("TC-3.13 Negative: Delete non-existent workout", func(t *testing.T) {
+		resp, body := sendRequest(t, "DELETE", "/api/workouts/99999", "default_user_1", nil)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("Expected status 404, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.14 (Negative): Чужая тренировка → 404
+	t.Run("TC-3.14 Negative: Delete other user's workout", func(t *testing.T) {
+		resp, body := sendRequest(t, "DELETE", fmt.Sprintf("/api/workouts/%d", workout2ID), "user_b", nil)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("Expected status 404, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.15 (Edge): current_progress не уходит ниже 0
+	t.Run("TC-3.15 Edge: progress never below 0", func(t *testing.T) {
+		c3Payload := map[string]interface{}{
+			"name":        "Challenge 3",
+			"exercise_id": 1,
+			"target_value": 10,
+			"start_date":  "2026-06-01T00:00:00Z",
+			"end_date":    "2026-07-01T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", c3Payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to create Challenge 3: %s", string(body))
+		}
+
+		payload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        10,
+		}
+		resp, body = sendRequest(t, "POST", "/api/challenges/3/workouts", "default_user_1", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to add workout: %s", string(body))
+		}
+
+		var respData map[string]interface{}
+		json.Unmarshal(body, &respData)
+		workout := respData["workout"].(map[string]interface{})
+		wID := int(workout["id"].(float64))
+
+		_, err := conn.Exec(context.Background(), "UPDATE challenges SET current_progress = 5 WHERE id = 3")
+		if err != nil {
+			t.Fatalf("Failed to set progress to 5 in DB: %v", err)
+		}
+
+		resp, body = sendRequest(t, "DELETE", fmt.Sprintf("/api/workouts/%d", wID), "default_user_1", nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var progress int
+		err = conn.QueryRow(context.Background(), "SELECT current_progress FROM challenges WHERE id = 3").Scan(&progress)
+		if err != nil {
+			t.Fatalf("Failed to query challenge 3 progress: %v", err)
+		}
+		if progress != 0 {
+			t.Errorf("Expected current_progress to be 0, got %d", progress)
+		}
+	})
+
+	// TC-3.16 (Positive): Получение списка ачивок
+	t.Run("TC-3.16 Positive: List user achievements", func(t *testing.T) {
+		resp, body := sendRequest(t, "GET", "/api/achievements", "default_user_1", nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData []map[string]interface{}
+		if err := json.Unmarshal(body, &respData); err != nil {
+			t.Fatalf("Failed to unmarshal body: %v", err)
+		}
+
+		if len(respData) == 0 {
+			t.Errorf("Expected to get achievements list, got empty")
+		}
+
+		codes := map[string]bool{}
+		for _, ach := range respData {
+			codes[ach["achievement_code"].(string)] = true
+		}
+
+		expectedCodes := []string{"first_step", "equator", "stability"}
+		for _, c := range expectedCodes {
+			if !codes[c] {
+				t.Errorf("Expected achievement %s to be in list, but it wasn't", c)
+			}
+		}
+	})
+
+	// TC-3.17 (Positive): Пустой список → [], не null
+	t.Run("TC-3.17 Positive: Empty achievements list", func(t *testing.T) {
+		resp, body := sendRequest(t, "GET", "/api/achievements", "new_user_without_achievements", nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		if string(body) != "[]\n" && string(body) != "[]" {
+			t.Errorf("Expected empty JSON array '[]', got '%s'", string(body))
+		}
+	})
+}

@@ -5,9 +5,15 @@ export class Router {
     this.routes = routes;
     this.container = container;
     this.currentView = null;
+    this.currentRoute = null;
     
     // Listen to store navigation events
-    store.subscribe((state) => this.handleRoute(state.currentRoute));
+    store.subscribe((state) => {
+      if (this.currentRoute !== state.currentRoute) {
+        this.currentRoute = state.currentRoute;
+        this.handleRoute(state.currentRoute);
+      }
+    });
   }
 
   handleRoute(route) {

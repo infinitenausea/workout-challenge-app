@@ -118,14 +118,28 @@ func (h *ChallengeHandler) HandleGetByID(w http.ResponseWriter, r *http.Request)
 
 	challenge, err := h.db.GetChallengeByID(r.Context(), userID, id)
 	if err != nil {
-		// Assuming pgx.ErrNoRows or similar would be returned, we can just return 404
 		log.Printf("Challenge not found or db error: %v\n", err)
 		http.Error(w, "Challenge not found", http.StatusNotFound)
 		return
 	}
 
+	workouts, err := h.db.GetWorkoutsByChallenge(r.Context(), userID, id)
+	if err != nil {
+		log.Printf("Failed to get workouts for challenge detail: %v\n", err)
+		workouts = []models.Workout{} // fallback to empty slice
+	}
+
+	resp := struct {
+		*models.Challenge
+		Workouts []models.Workout `json:"workouts"`
+	}{
+		Challenge: challenge,
+		Workouts:  workouts,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(challenge); err != nil {
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Printf("Error encoding response for challenge details: %v\n", err)
 	}
 }
+

@@ -77,12 +77,36 @@ class ApiClient {
     return this._request('/challenges');
   }
 
+  getChallengeDetail(challengeId) {
+    return this._request(`/challenges/${challengeId}`);
+  }
+
   createChallenge(payload) {
     return this._request('/challenges', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
   }
+
+  // Workouts
+  createWorkout(challengeId, payload) {
+    return this._request(`/challenges/${challengeId}/workouts`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  deleteWorkout(workoutId) {
+    return this._request(`/workouts/${workoutId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Achievements
+  getAchievements() {
+    return this._request('/achievements');
+  }
 }
 
 export const api = new ApiClient();
+

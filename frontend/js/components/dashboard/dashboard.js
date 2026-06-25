@@ -82,25 +82,27 @@ export class Dashboard {
       `;
     }
 
+    const unlocked = state.achievements || [];
+
     this.container.innerHTML = `
       ${challengesHTML}
 
       <div class="card">
         <h3 style="color: var(--tg-theme-link-color); margin-bottom: 16px; border-bottom: 1px solid var(--tg-theme-secondary-bg-color); padding-bottom: 8px;">Мои Достижения</h3>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; text-align: center;">
-          <div style="opacity: 0.3; filter: grayscale(100%);">
+          <div style="opacity: ${unlocked.includes('first_step') ? '1' : '0.3'}; filter: ${unlocked.includes('first_step') ? 'none' : 'grayscale(100%)'};">
             <div style="font-size: 24px;">🌱</div>
             <div style="font-size: 10px; color: var(--tg-theme-hint-color);">Первый шаг</div>
           </div>
-          <div style="opacity: 0.3; filter: grayscale(100%);">
+          <div style="opacity: ${unlocked.includes('equator') ? '1' : '0.3'}; filter: ${unlocked.includes('equator') ? 'none' : 'grayscale(100%)'};">
             <div style="font-size: 24px;">📈</div>
             <div style="font-size: 10px; color: var(--tg-theme-hint-color);">Экватор</div>
           </div>
-          <div style="opacity: 0.3; filter: grayscale(100%);">
+          <div style="opacity: ${unlocked.includes('hero') ? '1' : '0.3'}; filter: ${unlocked.includes('hero') ? 'none' : 'grayscale(100%)'};">
             <div style="font-size: 24px;">⚡</div>
             <div style="font-size: 10px; color: var(--tg-theme-hint-color);">Герой</div>
           </div>
-          <div style="opacity: 0.3; filter: grayscale(100%);">
+          <div style="opacity: ${unlocked.includes('stability') ? '1' : '0.3'}; filter: ${unlocked.includes('stability') ? 'none' : 'grayscale(100%)'};">
             <div style="font-size: 24px;">🔥</div>
             <div style="font-size: 10px; color: var(--tg-theme-hint-color);">Стабильность</div>
           </div>
@@ -114,5 +116,14 @@ export class Dashboard {
         store.navigate('challenge-form');
       });
     }
+
+    // Attach click listeners to challenge cards
+    this.container.querySelectorAll('.challenge-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const id = parseInt(e.currentTarget.getAttribute('data-id'), 10);
+        store.navigate('challenge-detail', { currentChallengeId: id });
+      });
+    });
   }
 }
+

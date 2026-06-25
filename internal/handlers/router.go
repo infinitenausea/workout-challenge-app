@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"workout-challenge-app/internal/database"
 )
@@ -26,6 +27,8 @@ func SetupRoutes(mux *http.ServeMux, db *database.DBWrapper) {
 	})
 
 	challengeHandler := NewChallengeHandler(db)
+	workoutHandler := NewWorkoutHandler(db)
+	achievementHandler := NewAchievementHandler(db)
 
 	mux.HandleFunc("/api/challenges", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -39,10 +42,40 @@ func SetupRoutes(mux *http.ServeMux, db *database.DBWrapper) {
 	})
 
 	mux.HandleFunc("/api/challenges/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/api/challenges/")
+		parts := strings.Split(path, "/")
+
+		if len(parts) == 1 && parts[0] != "" {
+			if r.Method == http.MethodGet {
+				challengeHandler.HandleGetByID(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if len(parts) == 2 && parts[0] != "" && parts[1] == "workouts" {
+			if r.Method == http.MethodPost {
+				workoutHandler.HandleCreateWorkout(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else {
+			http.NotFound(w, r)
+		}
+	})
+
+	mux.HandleFunc("/api/workouts/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			workoutHandler.HandleDeleteWorkout(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/achievements", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			challengeHandler.HandleGetByID(w, r)
+			achievementHandler.HandleList(w, r)
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
 }
+

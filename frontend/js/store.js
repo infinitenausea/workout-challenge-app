@@ -5,6 +5,9 @@ class Store {
       challenges: [],
       currentRoute: 'dashboard',
       currentChallengeId: null,
+      currentChallenge: null,
+      workouts: [],
+      achievements: [],
       theme: 'dark'
     };
     this.listeners = [];
@@ -64,6 +67,73 @@ class Store {
     });
   }
 
+  // Action: Set current challenge detail
+  setCurrentChallenge(challenge) {
+    this.setState({ currentChallenge: challenge });
+  }
+
+  // Action: Set workouts for the current challenge
+  setWorkouts(workouts) {
+    this.setState({ workouts });
+  }
+
+  // Action: Add workout to the beginning (DESC sorting)
+  addWorkout(workout) {
+    this.setState({
+      workouts: [workout, ...this.state.workouts]
+    });
+  }
+
+  // Action: Remove workout by id
+  removeWorkout(workoutId) {
+    this.setState({
+      workouts: this.state.workouts.filter(w => w.id !== workoutId)
+    });
+  }
+
+  // Action: Update progress of a specific challenge
+  updateChallengeProgress(challengeId, newProgress, newStatus) {
+    // Update in challenges list
+    const updatedChallenges = this.state.challenges.map(c => {
+      if (c.id === challengeId) {
+        return {
+          ...c,
+          current_progress: newProgress,
+          status: newStatus
+        };
+      }
+      return c;
+    });
+
+    // Update currentChallenge if it matches
+    let updatedCurrentChallenge = this.state.currentChallenge;
+    if (updatedCurrentChallenge && updatedCurrentChallenge.id === challengeId) {
+      updatedCurrentChallenge = {
+        ...updatedCurrentChallenge,
+        current_progress: newProgress,
+        status: newStatus
+      };
+    }
+
+    this.setState({
+      challenges: updatedChallenges,
+      currentChallenge: updatedCurrentChallenge
+    });
+  }
+
+  // Action: Set achievements (can be achievement objects or codes)
+  setAchievements(achievements) {
+    const codes = achievements.map(a => typeof a === 'object' ? a.achievement_code : a);
+    this.setState({ achievements: codes });
+  }
+
+  // Action: Add newly unlocked achievements
+  addAchievements(newCodes) {
+    this.setState({
+      achievements: [...this.state.achievements, ...newCodes]
+    });
+  }
+
   // Action: Navigate to route
   navigate(route, params = {}) {
     this.setState({
@@ -74,3 +144,4 @@ class Store {
 }
 
 export const store = new Store();
+
