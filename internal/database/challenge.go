@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"workout-challenge-app/internal/models"
 )
 
@@ -107,4 +108,22 @@ func (db *DBWrapper) GetChallengeByID(ctx context.Context, userID string, id int
 	}
 
 	return &c, nil
+}
+
+// DeleteChallenge deletes a challenge from the database.
+// If the challenge does not exist or is not owned by the user, returns pgx.ErrNoRows.
+func (db *DBWrapper) DeleteChallenge(ctx context.Context, userID string, id int) error {
+	tag, err := db.Pool.Exec(ctx, `
+		DELETE FROM challenges
+		WHERE id = $1 AND user_id = $2
+	`, id, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete challenge: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return nil
 }

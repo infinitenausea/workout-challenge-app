@@ -67,6 +67,15 @@ class Store {
     });
   }
 
+  // Action: Remove a challenge by id
+  removeChallenge(challengeId) {
+    this.setState({
+      challenges: this.state.challenges.filter(c => c.id !== challengeId),
+      currentChallengeId: this.state.currentChallengeId === challengeId ? null : this.state.currentChallengeId,
+      currentChallenge: this.state.currentChallenge && this.state.currentChallenge.id === challengeId ? null : this.state.currentChallenge
+    });
+  }
+
   // Action: Set current challenge detail
   setCurrentChallenge(challenge) {
     this.setState({ currentChallenge: challenge });

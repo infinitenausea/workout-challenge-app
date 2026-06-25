@@ -342,3 +342,27 @@
 
 * **Ограничения:**
   * Эндпоинт нужен для того, чтобы дашборд мог подсветить разблокированные ачивки при загрузке страницы.
+
+---
+
+## Epic: US-8 Удаление челленджа
+
+**Цель:** Реализовать API для удаления челленджа пользователем.
+
+### Задача 12: Метод DeleteChallenge (БД) и HandleDelete (Handler)
+
+* **Файлы:** `internal/database/challenge.go`, `internal/handlers/challenge_handler.go`, `internal/handlers/router.go`
+* **Описание:**
+  1. В `internal/database/challenge.go` реализовать метод:
+     * `DeleteChallenge(ctx, userID, id)`: удалить запись с `WHERE id = $1 AND user_id = $2`. Если `RowsAffected() == 0` — вернуть `pgx.ErrNoRows` (не найден или чужой).
+     * Благодаря `ON DELETE CASCADE` в схеме все `workouts` удалятся автоматически.
+  2. В `internal/handlers/challenge_handler.go` реализовать:
+     * `HandleDelete(w, r)` — обрабатывает `DELETE /api/challenges/:id`.
+     * Парсить `id` из URL. Если некорректный — `400 Bad Request`.
+     * Вызвать `db.DeleteChallenge`. Если `pgx.ErrNoRows` — `404 Not Found`. Если другая ошибка — `500`.
+     * При успехе — `200 OK` с `{ "success": true }`.
+  3. В `internal/handlers/router.go` добавить `case http.MethodDelete: challengeHandler.HandleDelete(w, r)` в блок обработки `/api/challenges/:id`.
+
+* **Ограничения:**
+  * Реализация должна быть user-scoped: нельзя удалить чужой челлендж (проверка `user_id`).
+  * Логировать все ошибки.

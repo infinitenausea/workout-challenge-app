@@ -46,9 +46,12 @@ func SetupRoutes(mux *http.ServeMux, db *database.DBWrapper) {
 		parts := strings.Split(path, "/")
 
 		if len(parts) == 1 && parts[0] != "" {
-			if r.Method == http.MethodGet {
+			switch r.Method {
+			case http.MethodGet:
 				challengeHandler.HandleGetByID(w, r)
-			} else {
+			case http.MethodDelete:
+				challengeHandler.HandleDelete(w, r)
+			default:
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		} else if len(parts) == 2 && parts[0] != "" && parts[1] == "workouts" {

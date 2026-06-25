@@ -86,6 +86,16 @@ button.secondary {
   border: 1px solid var(--tg-theme-hint-color);
 }
 
+button.danger {
+  background-color: transparent;
+  color: var(--danger-color);
+  border: 1px solid var(--danger-color);
+}
+
+button.danger:hover {
+  background-color: rgba(229, 57, 53, 0.08);
+}
+
 input, select, textarea {
   width: 100%;
   padding: 12px;

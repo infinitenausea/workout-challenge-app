@@ -518,4 +518,46 @@ func TestAPI_Sprint3(t *testing.T) {
 			t.Errorf("Expected empty JSON array '[]', got '%s'", string(body))
 		}
 	})
+
+	// TC-3.18 (Positive): Удаление существующего челленджа
+	t.Run("TC-3.18 Positive: Delete challenge removes it and its workouts", func(t *testing.T) {
+		// Create a challenge to delete (use default_user_1 which has seeded exercises)
+		challengePayload := map[string]interface{}{
+			"name":         "Challenge to Delete",
+			"exercise_id":  1,
+			"target_value": 100,
+			"start_date":   "2025-01-01T00:00:00Z",
+			"end_date":     "2025-03-01T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", challengePayload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Setup: failed to create challenge. Status: %d, body: %s", resp.StatusCode, string(body))
+		}
+
+		var created map[string]interface{}
+		if err := json.Unmarshal(body, &created); err != nil {
+			t.Fatalf("Setup: failed to unmarshal created challenge: %v", err)
+		}
+		challengeID := int(created["id"].(float64))
+
+		// Delete the challenge
+		resp, body = sendRequest(t, "DELETE", fmt.Sprintf("/api/challenges/%d", challengeID), "default_user_1", nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected 200 on DELETE, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		// Verify it's gone: GET should return 404
+		resp, body = sendRequest(t, "GET", fmt.Sprintf("/api/challenges/%d", challengeID), "default_user_1", nil)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("Expected 404 after deletion, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-3.18 (Negative): Удаление несуществующего / чужого челленджа
+	t.Run("TC-3.18 Negative: Delete non-existent challenge returns 404", func(t *testing.T) {
+		resp, body := sendRequest(t, "DELETE", "/api/challenges/99999999", "some_other_user", nil)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("Expected 404 for non-existent challenge, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
 }

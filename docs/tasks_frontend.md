@@ -400,3 +400,36 @@
 * **Ограничения:**
   * Не ломать существующую навигацию между `dashboard` и `challenge-form`.
   * Карточки челленджей на дашборде должны получить визуальный фидбек при наведении (`cursor: pointer` + существующие hover-стили из CSS).
+
+---
+
+## Epic: US-8 Удаление челленджа
+
+**Цель:** Реализовать UI для удаления челленджа на экране деталей.
+
+### Задача 14: API Client
+
+* **Файл:** `js/api.js`
+* **Описание:** Добавить метод `deleteChallenge(challengeId)`, делающий `DELETE /api/challenges/:id`.
+
+### Задача 15: State Management (Store)
+
+* **Файл:** `js/store.js`
+* **Описание:** Добавить метод `removeChallenge(challengeId)`, удаляющий челлендж из `state.challenges` и сбрасывающий `currentChallenge` и `currentChallengeId` если они совпадают.
+
+### Задача 16: UI Component & CSS
+
+* **Файл:** `js/components/challenge/challenge-detail.js`, `css/main.css`
+* **Описание:**
+  1. В `css/main.css` добавить стиль `button.danger` (прозрачный фон, цвет `--danger-color`, красная рамка, hover-эффект).
+  2. В `challenge-detail.js` добавить метод `handleDeleteChallenge(challengeId)`:
+     * Показать `confirm()` диалог с предупреждением.
+     * При подтверждении вызвать `api.deleteChallenge(challengeId)`.
+     * Вызвать `store.removeChallenge(challengeId)` и `store.navigate('dashboard')`.
+     * Показать success-тост.
+     * Обработать ошибку с error-тостом.
+  3. В разметке `render()` добавить кнопку `<button id="delete-challenge-btn" class="danger">🗑️ Удалить челлендж</button>` под списком тренировок.
+  4. В событийном блоке подключить обработчик клика на кнопку.
+
+* **Ограничения:**
+  * Кнопка должна быть стилизована как danger — красная, чтобы отличаться от остальных действий.

@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"workout-challenge-app/internal/database"
 	"workout-challenge-app/internal/models"
 )
@@ -143,3 +145,37 @@ func (h *ChallengeHandler) HandleGetByID(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// HandleDelete handles the DELETE /api/challenges/:id endpoint
+func (h *ChallengeHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
+	userID := h.getUserID(r)
+
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "Invalid challenge ID", http.StatusBadRequest)
+		return
+	}
+
+	idStr := pathParts[2]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		log.Printf("Invalid challenge ID format: %s\n", idStr)
+		http.Error(w, "Invalid challenge ID format", http.StatusBadRequest)
+		return
+	}
+
+	err = h.db.DeleteChallenge(r.Context(), userID, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Printf("Challenge not found for deletion: id %d\n", id)
+			http.Error(w, "Challenge not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Database error deleting challenge: %v\n", err)
+		http.Error(w, "Failed to delete challenge", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}

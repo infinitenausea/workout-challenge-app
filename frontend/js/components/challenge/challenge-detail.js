@@ -76,6 +76,20 @@ export class ChallengeDetail {
     }
   }
 
+  async handleDeleteChallenge(challengeId) {
+    if (!confirm('Удалить челлендж? Это действие необратимо — все тренировки будут удалены.')) return;
+
+    try {
+      await api.deleteChallenge(challengeId);
+      store.removeChallenge(challengeId);
+      store.navigate('dashboard');
+      this.showToast('Челлендж удалён', 'success');
+    } catch (error) {
+      console.error('Failed to delete challenge:', error);
+      this.showToast(error.message || 'Ошибка удаления челленджа', 'error');
+    }
+  }
+
   render() {
     const state = store.getState();
 
@@ -175,6 +189,10 @@ export class ChallengeDetail {
         <div class="workouts-list">
           ${workoutsListHTML}
         </div>
+
+        <button id="delete-challenge-btn" class="danger" style="width: 100%; margin-top: 24px;">
+          🗑️ Удалить челлендж
+        </button>
       </div>
     `;
 
@@ -195,6 +213,10 @@ export class ChallengeDetail {
         const id = parseInt(e.currentTarget.getAttribute('data-id'), 10);
         this.handleDeleteWorkout(id);
       });
+    });
+
+    this.container.querySelector('#delete-challenge-btn').addEventListener('click', () => {
+      this.handleDeleteChallenge(c.id);
     });
   }
 }

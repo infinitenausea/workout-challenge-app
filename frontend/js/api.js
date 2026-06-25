@@ -88,6 +88,12 @@ class ApiClient {
     });
   }
 
+  deleteChallenge(challengeId) {
+    return this._request(`/challenges/${challengeId}`, {
+      method: 'DELETE'
+    });
+  }
+
   // Workouts
   createWorkout(challengeId, payload) {
     return this._request(`/challenges/${challengeId}/workouts`, {
