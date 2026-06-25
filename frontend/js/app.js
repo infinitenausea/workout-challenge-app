@@ -29,4 +29,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Even if it fails, we fall back to empty list so the app doesn't crash
     store.setExercises([]);
   }
+
+  // 4. Fetch initial challenges from API and load into store
+  try {
+    const challenges = await api.getChallenges();
+    store.setChallenges(challenges);
+  } catch (error) {
+    console.error('Failed to load initial challenges:', error);
+    // Even if it fails, we fall back to empty list so the app doesn't crash
+    store.setChallenges([]);
+  }
 });

@@ -50,3 +50,256 @@
 2. **TC-2.5 (Negative): Блокировка отправки при некорректных датах (AC-2)**
    * *Steps:* Выбрать дату окончания раньше даты начала.
    * *Expected:* Кнопка отправки заблокирована, или при клике выводится тост с предупреждением об ошибке валидации, форма не уходит в API.
+
+---
+
+## Epic: US-3 Логирование тренировки и Ачивки
+
+**Цель:** Проверить полный цикл добавления/удаления тренировок, пересчёт прогресса, выдачу ачивок и корректность поведения фронтенда (моментальное обновление, поп-апы).
+
+### API Тестирование (cURL / Postman)
+
+#### Добавление тренировки
+
+1. **TC-3.1 (Positive): Успешное добавление тренировки (AC-1)**
+   * *Precondition:* Создан челлендж с `id=1`, `target_value=100`, `current_progress=0`, `status='active'`.
+   * *Steps:*
+     ```bash
+     curl -X POST http://localhost:8080/api/challenges/1/workouts \
+       -H "Content-Type: application/json" \
+       -H "X-User-Id: default_user_1" \
+       -d '{"workout_date": "2026-06-25", "value": 30}'
+     ```
+   * *Expected:*
+     * HTTP 201 Created.
+     * Ответ содержит:
+       ```json
+       {
+         "success": true,
+         "workout": { "id": 1, "challenge_id": 1, "workout_date": "2026-06-25...", "value": 30 },
+         "unlocked_achievements": ["first_step"]
+       }
+       ```
+     * В БД: `workouts` содержит новую запись; `challenges.current_progress = 30`.
+     * Ачивка `first_step` записана в `user_achievements`.
+
+2. **TC-3.2 (Positive): Ачивка «Экватор» при 50% прогресса (AC-2)**
+   * *Precondition:* Челлендж `id=1`, `target_value=100`, `current_progress=30`.
+   * *Steps:*
+     ```bash
+     curl -X POST http://localhost:8080/api/challenges/1/workouts \
+       -H "Content-Type: application/json" \
+       -H "X-User-Id: default_user_1" \
+       -d '{"workout_date": "2026-06-26", "value": 20}'
+     ```
+   * *Expected:*
+     * HTTP 201. `current_progress = 50`.
+     * `unlocked_achievements` содержит `"equator"`.
+     * Запись `equator` появилась в `user_achievements`.
+
+3. **TC-3.3 (Positive): Ачивка «Герой» при 100% до дедлайна**
+   * *Precondition:* Челлендж `id=1`, `target_value=100`, `current_progress=80`, `end_date` в будущем.
+   * *Steps:*
+     ```bash
+     curl -X POST http://localhost:8080/api/challenges/1/workouts \
+       -H "Content-Type: application/json" \
+       -H "X-User-Id: default_user_1" \
+       -d '{"workout_date": "2026-06-27", "value": 20}'
+     ```
+   * *Expected:*
+     * HTTP 201. `current_progress = 100`. `status = 'completed'`.
+     * `unlocked_achievements` содержит `"hero"`.
+
+4. **TC-3.4 (Positive): Ачивка «Стабильность» — 3 дня подряд**
+   * *Precondition:* Пользователь имеет тренировки за `2026-06-25` и `2026-06-26`.
+   * *Steps:* Добавить тренировку за `2026-06-27`.
+   * *Expected:*
+     * `unlocked_achievements` содержит `"stability"`.
+
+5. **TC-3.5 (Negative): Отрицательное количество повторений (AC-3)**
+   * *Steps:*
+     ```bash
+     curl -X POST http://localhost:8080/api/challenges/1/workouts \
+       -H "Content-Type: application/json" \
+       -H "X-User-Id: default_user_1" \
+       -d '{"workout_date": "2026-06-25", "value": -10}'
+     ```
+   * *Expected:* HTTP 400 Bad Request. Запись не создана.
+
+6. **TC-3.6 (Negative): Нулевое количество повторений**
+   * *Steps:* Отправить `{"workout_date": "2026-06-25", "value": 0}`.
+   * *Expected:* HTTP 400 Bad Request.
+
+7. **TC-3.7 (Negative): Тренировка для несуществующего челленджа**
+   * *Steps:* `POST /api/challenges/99999/workouts` с валидным телом.
+   * *Expected:* HTTP 400 или 404. Сообщение: `"Challenge not found or not active"`.
+
+8. **TC-3.8 (Negative): Тренировка для завершённого челленджа**
+   * *Precondition:* Челлендж со `status='completed'`.
+   * *Steps:* `POST /api/challenges/{id}/workouts` с валидным телом.
+   * *Expected:* HTTP 400. Сообщение: `"Challenge not found or not active"`.
+
+9. **TC-3.9 (Edge): Пустая дата тренировки**
+   * *Steps:* Отправить `{"value": 30}` без `workout_date`.
+   * *Expected:* HTTP 400 Bad Request.
+
+10. **TC-3.10 (Edge): Ачивки не дублируются при повторном срабатывании**
+    * *Precondition:* Ачивка `first_step` уже разблокирована.
+    * *Steps:* Добавить ещё одну тренировку.
+    * *Expected:* `unlocked_achievements` в ответе **пустой массив** `[]`. В `user_achievements` по-прежнему одна запись `first_step`.
+
+#### Удаление тренировки
+
+11. **TC-3.11 (Positive): Успешное удаление тренировки**
+    * *Precondition:* Существует тренировка `id=1`, принадлежащая пользователю.
+    * *Steps:*
+      ```bash
+      curl -X DELETE http://localhost:8080/api/workouts/1 \
+        -H "X-User-Id: default_user_1"
+      ```
+    * *Expected:*
+      * HTTP 200. Ответ: `{ "success": true, "challenge": { ... } }`.
+      * `current_progress` в `challenge` уменьшен на `value` удалённой тренировки.
+      * Запись удалена из таблицы `workouts`.
+
+12. **TC-3.12 (Positive): Каскадный откат статуса completed → active (US-4 AC-1)**
+    * *Precondition:* Челлендж `status='completed'`, `current_progress=100`, `target_value=100`. Существует тренировка `id=2` с `value=20`.
+    * *Steps:* `DELETE /api/workouts/2`.
+    * *Expected:*
+      * `current_progress = 80`.
+      * `status` изменился с `'completed'` на `'active'`.
+
+13. **TC-3.13 (Negative): Удаление несуществующей тренировки**
+    * *Steps:* `DELETE /api/workouts/99999`.
+    * *Expected:* HTTP 404 Not Found.
+
+14. **TC-3.14 (Negative): Удаление чужой тренировки**
+    * *Precondition:* Тренировка `id=1` принадлежит `user_a`.
+    * *Steps:* `DELETE /api/workouts/1` с заголовком `X-User-Id: user_b`.
+    * *Expected:* HTTP 404 Not Found (бэкенд не раскрывает факт существования чужих записей).
+
+15. **TC-3.15 (Edge): current_progress не уходит ниже 0**
+    * *Precondition:* Гипотетический случай, когда `current_progress` может стать < 0 из-за удаления.
+    * *Expected:* SQL использует `GREATEST(current_progress - $1, 0)`, значение не может быть отрицательным.
+
+#### API Ачивок
+
+16. **TC-3.16 (Positive): Получение списка ачивок пользователя**
+    * *Precondition:* У пользователя разблокированы `first_step` и `equator`.
+    * *Steps:*
+      ```bash
+      curl http://localhost:8080/api/achievements \
+        -H "X-User-Id: default_user_1"
+      ```
+    * *Expected:*
+      * HTTP 200.
+      * Массив из 2 объектов: `[{ "achievement_code": "first_step", "unlocked_at": "..." }, { "achievement_code": "equator", "unlocked_at": "..." }]`.
+
+17. **TC-3.17 (Positive): Пустой список ачивок**
+    * *Precondition:* У пользователя нет разблокированных ачивок.
+    * *Steps:* `GET /api/achievements`.
+    * *Expected:* HTTP 200. Ответ: `[]` (пустой массив, не `null`).
+
+---
+
+### UI/UX Тестирование (Браузер)
+
+#### Навигация и страница деталей
+
+1. **TC-3.18 (Positive): Переход на страницу деталей челленджа**
+   * *Steps:* На дашборде кликнуть по карточке челленджа.
+   * *Expected:*
+     * Открывается страница деталей.
+     * Отображаются: название, прогресс-бар, таймер обратного отсчёта, кнопка «Добавить тренировку».
+     * Список тренировок пуст (если нет записей) с заглушкой.
+
+2. **TC-3.19 (Positive): Кнопка «Назад» возвращает на дашборд**
+   * *Steps:* На странице деталей нажать «← Назад».
+   * *Expected:* Возврат на дашборд. Данные челленджей на месте, прогресс актуален.
+
+#### Добавление тренировки через UI
+
+3. **TC-3.20 (Positive): Полный E2E флоу — добавление тренировки (AC-1)**
+   * *Steps:*
+     1. Открыть детали челленджа с `current_progress=0`, `target_value=100`.
+     2. Нажать «Добавить тренировку».
+     3. Ввести дату (сегодня) и количество `30`.
+     4. Нажать «Сохранить».
+   * *Expected:*
+     * Модалка закрывается.
+     * Тост: `"Тренировка добавлена! +30 повторений"`.
+     * Прогресс-бар **мгновенно** обновился до 30% **без перезагрузки страницы**.
+     * В списке тренировок появилась новая запись.
+
+4. **TC-3.21 (Positive): Поздравительный поп-ап при ачивке «Экватор» (AC-2)**
+   * *Steps:*
+     1. Довести прогресс до >= 50% через добавление тренировки.
+   * *Expected:*
+     * После успешного сохранения появляется поздравительный поп-ап.
+     * Поп-ап содержит иконку 📈, текст «Экватор», описание.
+     * Кнопка «Отлично!» закрывает поп-ап.
+
+5. **TC-3.22 (Negative): Валидация формы — пустое количество**
+   * *Steps:* Открыть модалку, оставить поле количества пустым, нажать «Сохранить».
+   * *Expected:* Тост: `"Количество должно быть больше 0"`. Форма не отправляется.
+
+6. **TC-3.23 (Negative): Валидация формы — отрицательное количество**
+   * *Steps:* Ввести `-5` в поле количества.
+   * *Expected:* HTML-атрибут `min="1"` блокирует ввод, или фронтенд показывает тост с ошибкой.
+
+#### Удаление тренировки через UI
+
+7. **TC-3.24 (Positive): Удаление тренировки из списка**
+   * *Steps:*
+     1. На странице деталей нажать иконку 🗑️ рядом с тренировкой.
+     2. Подтвердить в диалоге `confirm()`.
+   * *Expected:*
+     * Тренировка исчезает из списка.
+     * Прогресс-бар пересчитывается вниз мгновенно.
+     * Тост: `"Тренировка удалена"`.
+
+8. **TC-3.25 (Positive): Откат статуса completed → active после удаления (US-4 AC-1)**
+   * *Steps:*
+     1. Довести челлендж до 100% (статус `completed`).
+     2. Удалить последнюю тренировку, которая опускает прогресс ниже 100%.
+   * *Expected:*
+     * Статус-бейдж меняется с «Завершён» на «Активен».
+     * Кнопка «Добавить тренировку» снова активна.
+     * Прогресс-бар показывает актуальное значение < 100%.
+
+9. **TC-3.26 (Negative): Отмена удаления в диалоге confirm**
+   * *Steps:* Нажать 🗑️, в `confirm()` нажать «Отмена».
+   * *Expected:* Тренировка остаётся на месте, запрос не отправлен.
+
+#### Ачивки на дашборде
+
+10. **TC-3.27 (Positive): Подсветка разблокированных ачивок на дашборде**
+    * *Precondition:* Пользователь получил ачивки `first_step` и `equator`.
+    * *Steps:* Перейти на дашборд.
+    * *Expected:*
+      * Иконки 🌱 (Первый шаг) и 📈 (Экватор) — яркие, без `grayscale`.
+      * Иконки ⚡ (Герой) и 🔥 (Стабильность) — серые, с `opacity: 0.3`.
+
+11. **TC-3.28 (Positive): Модальное окно закрывается по оверлею и Escape**
+    * *Steps:*
+      1. Открыть модалку «Добавить тренировку».
+      2. Кликнуть по тёмному оверлею за пределами модалки.
+    * *Expected:* Модалка закрывается.
+    * *Steps:* Открыть модалку повторно. Нажать `Escape`.
+    * *Expected:* Модалка закрывается.
+
+#### Граничные случаи
+
+12. **TC-3.29 (Edge): Добавление тренировки, приводящей к 100%, и возврат на дашборд**
+    * *Steps:*
+      1. Добавить тренировку, доводящую прогресс до 100%.
+      2. Убедиться, что статус сменился на `completed`.
+      3. Нажать «Назад» на дашборд.
+    * *Expected:* На дашборде карточка челленджа показывает 100% и статус «Завершён».
+
+13. **TC-3.30 (Edge): Множественные ачивки за одну тренировку**
+    * *Precondition:* `current_progress=0`, `target_value=50`. Нет ни одной тренировки.
+    * *Steps:* Добавить тренировку с `value=50`.
+    * *Expected:*
+      * `unlocked_achievements` содержит `["first_step", "equator", "hero"]` (3 ачивки за раз).
+      * На фронтенде — 3 последовательных поп-апа.

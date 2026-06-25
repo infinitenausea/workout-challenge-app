@@ -23,13 +23,67 @@ export class Dashboard {
       return;
     }
 
+    const hasChallenges = state.challenges && state.challenges.length > 0;
+
+    let challengesHTML = '';
+    if (!hasChallenges) {
+      challengesHTML = `
+        <div class="card" style="text-align: center; padding: 40px 20px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🏃‍♂️</div>
+          <h2 style="margin-bottom: 8px;">Активные челленджи</h2>
+          <p style="color: var(--tg-theme-hint-color); margin-bottom: 24px;">У вас пока нет активных челленджей. Создайте первый!</p>
+          <button id="create-challenge-btn">Создать первый челлендж</button>
+        </div>
+      `;
+    } else {
+      const cardsHTML = state.challenges.map(c => {
+        const progressPercent = Math.min(100, Math.round((c.current_progress / c.target_value) * 100)) || 0;
+        
+        // Format dates nicely
+        const formatDate = (dateStr) => {
+          if (!dateStr) return '';
+          const d = new Date(dateStr);
+          return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+
+        const startDateFormatted = formatDate(c.start_date);
+        const endDateFormatted = formatDate(c.end_date);
+
+        return `
+          <div class="card challenge-card" data-id="${c.id}">
+            <div class="challenge-header">
+              <span class="challenge-title">${c.name}</span>
+              <span class="challenge-status">${c.status === 'active' ? 'Активен' : c.status}</span>
+            </div>
+            <div class="challenge-dates">
+              📅 ${startDateFormatted} — ${endDateFormatted}
+            </div>
+            <div class="progress-wrapper">
+              <div class="progress-info">
+                <span>Прогресс: <strong>${c.current_progress}</strong> из <strong>${c.target_value}</strong></span>
+                <span class="progress-percent">${progressPercent}%</span>
+              </div>
+              <div class="progress-container">
+                <div class="progress-bar" style="width: ${progressPercent}%;"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      challengesHTML = `
+        <div class="dashboard-header-row">
+          <h2>Активные челленджи</h2>
+          <button id="create-challenge-btn" class="btn-small">+ Создать</button>
+        </div>
+        <div class="challenges-list" style="margin-bottom: 16px;">
+          ${cardsHTML}
+        </div>
+      `;
+    }
+
     this.container.innerHTML = `
-      <div class="card" style="text-align: center; padding: 40px 20px;">
-        <div style="font-size: 48px; margin-bottom: 16px;">🏃‍♂️</div>
-        <h2 style="margin-bottom: 8px;">Активные челленджи</h2>
-        <p style="color: var(--tg-theme-hint-color); margin-bottom: 24px;">У вас пока нет активных челленджей. Создайте первый!</p>
-        <button id="create-challenge-btn">Создать первый челлендж</button>
-      </div>
+      ${challengesHTML}
 
       <div class="card">
         <h3 style="color: var(--tg-theme-link-color); margin-bottom: 16px; border-bottom: 1px solid var(--tg-theme-secondary-bg-color); padding-bottom: 8px;">Мои Достижения</h3>
@@ -55,8 +109,10 @@ export class Dashboard {
     `;
 
     const btn = this.container.querySelector('#create-challenge-btn');
-    btn.addEventListener('click', () => {
-      store.navigate('challenge-form');
-    });
+    if (btn) {
+      btn.addEventListener('click', () => {
+        store.navigate('challenge-form');
+      });
+    }
   }
 }

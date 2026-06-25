@@ -24,4 +24,25 @@ func SetupRoutes(mux *http.ServeMux, db *database.DBWrapper) {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+
+	challengeHandler := NewChallengeHandler(db)
+
+	mux.HandleFunc("/api/challenges", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			challengeHandler.HandleList(w, r)
+		case http.MethodPost:
+			challengeHandler.HandleCreate(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/api/challenges/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			challengeHandler.HandleGetByID(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 }

@@ -71,6 +71,18 @@ class ApiClient {
       body: JSON.stringify({ name })
     });
   }
+
+  // Challenges
+  getChallenges() {
+    return this._request('/challenges');
+  }
+
+  createChallenge(payload) {
+    return this._request('/challenges', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
 }
 
 export const api = new ApiClient();

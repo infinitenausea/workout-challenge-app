@@ -52,6 +52,18 @@ class Store {
     });
   }
 
+  // Action: Set challenges
+  setChallenges(challenges) {
+    this.setState({ challenges });
+  }
+
+  // Action: Add a single challenge
+  addChallenge(challenge) {
+    this.setState({
+      challenges: [...this.state.challenges, challenge]
+    });
+  }
+
   // Action: Navigate to route
   navigate(route, params = {}) {
     this.setState({

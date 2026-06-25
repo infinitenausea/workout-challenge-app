@@ -175,3 +175,90 @@ input:focus, select:focus, textarea:focus {
     opacity: 1;
   }
 }
+
+/* Challenge Cards & Progress Bars */
+.challenge-card {
+  position: relative;
+  transition: var(--transition);
+}
+
+.challenge-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.challenge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.challenge-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color);
+}
+
+.challenge-status {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 20px;
+  background-color: rgba(36, 178, 127, 0.15);
+  color: var(--accent-color);
+}
+
+.challenge-dates {
+  font-size: 13px;
+  color: var(--tg-theme-hint-color);
+  margin-bottom: 12px;
+}
+
+.progress-wrapper {
+  margin-top: 8px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.progress-percent {
+  font-weight: 600;
+  color: var(--tg-theme-link-color);
+}
+
+.progress-container {
+  height: 8px;
+  background-color: var(--tg-theme-secondary-bg-color);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--tg-theme-link-color) 0%, var(--accent-color) 100%);
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.dashboard-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dashboard-header-row h2 {
+  margin-bottom: 0;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+

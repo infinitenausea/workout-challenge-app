@@ -91,25 +91,20 @@ export class ChallengeForm {
         }
       }
 
-      // Prepare challenge payload
+      // Prepare challenge payload with RFC3339 dates
       const challengePayload = {
         name,
         exercise_id: finalExerciseId,
         target_value: targetValue,
-        start_date: startDate,
-        end_date: endDate
+        start_date: `${startDate}T00:00:00Z`,
+        end_date: `${endDate}T00:00:00Z`
       };
 
       console.log('Challenge payload to save:', challengePayload);
       
-      // Since createChallenge endpoint isn't necessarily fully tested/active, we log and alert
-      // or check if api.createChallenge exists (we can define a stub in api.js later if needed)
-      if (api.createChallenge) {
-        await api.createChallenge(challengePayload);
-        this.showToast('Челлендж успешно создан!', 'success');
-      } else {
-        this.showToast('Челлендж создан (демо)! Настройте API бэкенда для полной интеграции.', 'success');
-      }
+      const newChallenge = await api.createChallenge(challengePayload);
+      store.addChallenge(newChallenge);
+      this.showToast('Челлендж успешно создан!', 'success');
 
       // Navigate back to dashboard
       store.navigate('dashboard');
