@@ -1,4 +1,3 @@
-```markdown
 # Technical Architecture: Workout Challenge Tracker
 
 ## 1. System Architecture Overview (Обзор архитектуры системы)
@@ -25,13 +24,11 @@ graph LR
     Client -->|HTTP REST / JSON / X-User-Id| API
     DB_Client -->|SQL Queries| DB
 
-```
 
 ---
 
 ## 2. Directory Tree (Дерево директорий)
 
-```text
 workout-challenge-app/
 ├── .agents/                     # Инструкции и промпты для AI-агентов команды разработки
 │   ├── analyst.md
@@ -73,7 +70,6 @@ workout-challenge-app/
 │   │       ├── dashboard/
 │   │       ├── challenge/
 │   │       └── ui/              # Общие UI элементы (модалки, тосты)
-```
 
 
 ---
@@ -82,7 +78,6 @@ workout-challenge-app/
 
 При запуске бэкенда автоматически выполняются SQL-запросы для создания таблиц.
 
-```sql
 -- Таблица упражнений
 CREATE TABLE IF NOT EXISTS exercises (
     id SERIAL PRIMARY KEY,
@@ -131,8 +126,6 @@ CREATE TABLE IF NOT EXISTS user_achievements (
 CREATE INDEX IF NOT EXISTS idx_challenges_user ON challenges(user_id);
 CREATE INDEX IF NOT EXISTS idx_workouts_challenge ON workouts(challenge_id);
 CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
-
-```
 
 ---
 
