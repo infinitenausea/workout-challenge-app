@@ -1,0 +1,218 @@
+import { store } from '../../store.js';
+import { api } from '../../api.js';
+
+export class ChallengeForm {
+  constructor(container) {
+    this.container = container;
+    this.unsubscribe = null;
+    this.isSubmitting = false;
+  }
+
+  mount() {
+    this.unsubscribe = store.subscribe(() => this.render());
+    this.render();
+  }
+
+  unmount() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+    }
+  }
+
+  showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) return;
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <span>${message}</span>
+      <button style="background: none; border: none; color: inherit; font-size: 20px; cursor: pointer; padding: 0 4px;" onclick="this.parentElement.remove()">&times;</button>
+    `;
+
+    toastContainer.appendChild(toast);
+
+    setTimeout(() => {
+      toast.remove();
+    }, 4000);
+  }
+
+  async handleFormSubmit(e) {
+    e.preventDefault();
+    if (this.isSubmitting) return;
+
+    const form = e.target;
+    const name = form.elements['name'].value.trim();
+    const exerciseIdVal = form.elements['exercise_id'].value;
+    const customExerciseName = form.elements['custom_exercise_name'] ? form.elements['custom_exercise_name'].value.trim() : '';
+    const targetValue = parseInt(form.elements['target_value'].value, 10);
+    const startDate = form.elements['start_date'].value;
+    const endDate = form.elements['end_date'].value;
+
+    // Client-side validations
+    if (!name) {
+      this.showToast('Введите название челленджа', 'error');
+      return;
+    }
+    if (exerciseIdVal === 'custom' && !customExerciseName) {
+      this.showToast('Введите название нового упражнения', 'error');
+      return;
+    }
+    if (isNaN(targetValue) || targetValue <= 0) {
+      this.showToast('Целевое количество должно быть больше 0', 'error');
+      return;
+    }
+    if (new Date(endDate) < new Date(startDate)) {
+      this.showToast('Дата окончания не может быть раньше даты старта', 'error');
+      return;
+    }
+
+    this.isSubmitting = true;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      let finalExerciseId = parseInt(exerciseIdVal, 10);
+
+      // Handle custom exercise creation first
+      if (exerciseIdVal === 'custom') {
+        try {
+          const newExercise = await api.createExercise(customExerciseName);
+          this.showToast(`Упражнение "${newExercise.name}" успешно создано!`, 'success');
+          
+          // Add to store
+          store.addExercise(newExercise);
+          finalExerciseId = newExercise.id;
+        } catch (error) {
+          this.showToast(error.message || 'Ошибка создания упражнения', 'error');
+          this.isSubmitting = false;
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+      }
+
+      // Prepare challenge payload
+      const challengePayload = {
+        name,
+        exercise_id: finalExerciseId,
+        target_value: targetValue,
+        start_date: startDate,
+        end_date: endDate
+      };
+
+      console.log('Challenge payload to save:', challengePayload);
+      
+      // Since createChallenge endpoint isn't necessarily fully tested/active, we log and alert
+      // or check if api.createChallenge exists (we can define a stub in api.js later if needed)
+      if (api.createChallenge) {
+        await api.createChallenge(challengePayload);
+        this.showToast('Челлендж успешно создан!', 'success');
+      } else {
+        this.showToast('Челлендж создан (демо)! Настройте API бэкенда для полной интеграции.', 'success');
+      }
+
+      // Navigate back to dashboard
+      store.navigate('dashboard');
+
+    } catch (error) {
+      this.showToast(error.message || 'Ошибка при сохранении челленджа', 'error');
+    } finally {
+      this.isSubmitting = false;
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  render() {
+    const state = store.getState();
+    
+    // We only render if we are currently on the 'challenge-form' route
+    if (state.currentRoute !== 'challenge-form') {
+      this.container.innerHTML = '';
+      return;
+    }
+
+    // Determine if custom exercise option is selected to persist toggle state
+    // (though since it rerenders we can check the DOM if it exists, or just read the select value)
+    const currentSelectVal = this.container.querySelector('#exercise_id')?.value || '';
+
+    // Check if we need to show the custom input field
+    const showCustomInput = currentSelectVal === 'custom';
+
+    const exercisesOptions = state.exercises.map(ex => 
+      `<option value="${ex.id}" ${currentSelectVal == ex.id ? 'selected' : ''}>${ex.name}</option>`
+    ).join('');
+
+    // Default dates (today and today + 30 days)
+    const today = new Date().toISOString().split('T')[0];
+    const defaultEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    this.container.innerHTML = `
+      <div class="card challenge-form-card">
+        <h2>Новый челлендж</h2>
+        <form id="challenge-form">
+          <div class="form-group">
+            <label for="name">Название челленджа</label>
+            <input type="text" id="name" name="name" placeholder="Например: 100 отжиманий ежедневно" required>
+          </div>
+
+          <div class="form-group">
+            <label for="exercise_id">Упражнение</label>
+            <select id="exercise_id" name="exercise_id" required>
+              <option value="" disabled ${!currentSelectVal ? 'selected' : ''}>Выберите упражнение...</option>
+              ${exercisesOptions}
+              <option value="custom" ${currentSelectVal === 'custom' ? 'selected' : ''}>+ Добавить свое...</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="custom-exercise-group" style="display: ${showCustomInput ? 'block' : 'none'};">
+            <label for="custom_exercise_name">Название нового упражнения</label>
+            <input type="text" id="custom_exercise_name" name="custom_exercise_name" placeholder="Например: Планка">
+          </div>
+
+          <div class="form-group">
+            <label for="target_value">Цель (повторений)</label>
+            <input type="number" id="target_value" name="target_value" min="1" placeholder="3000" required>
+          </div>
+
+          <div class="form-group-row" style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+              <label for="start_date">Старт</label>
+              <input type="date" id="start_date" name="start_date" value="${today}" required>
+            </div>
+            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+              <label for="end_date">Дедлайн</label>
+              <input type="date" id="end_date" name="end_date" value="${defaultEnd}" required>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px;">
+            <button type="submit" style="flex: 1;">Создать</button>
+            <button type="button" id="cancel-btn" class="secondary" style="flex: 1;">Отмена</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    // Attach listeners
+    const form = this.container.querySelector('#challenge-form');
+    form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+
+    const select = this.container.querySelector('#exercise_id');
+    const customGroup = this.container.querySelector('#custom-exercise-group');
+    
+    select.addEventListener('change', (e) => {
+      if (e.target.value === 'custom') {
+        customGroup.style.display = 'block';
+        customGroup.querySelector('input').setAttribute('required', 'required');
+      } else {
+        customGroup.style.display = 'none';
+        customGroup.querySelector('input').removeAttribute('required');
+      }
+    });
+
+    const cancelBtn = this.container.querySelector('#cancel-btn');
+    cancelBtn.addEventListener('click', () => {
+      store.navigate('dashboard');
+    });
+  }
+}
