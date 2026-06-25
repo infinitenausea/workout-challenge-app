@@ -1,11 +1,40 @@
 # Workout Challenge Tracker
 
-A web application to track workout challenges and consistency.
+Веб-приложение для спортивной мотивации: создание челленджей, логирование тренировок и отслеживание прогресса.
 
-## Tech Stack
-- **Frontend**: Vanilla HTML/CSS/JavaScript
-- **Backend**: Go (Golang) API Server
-- **Database**: PostgreSQL
+## Tech Stack (Стек технологий)
+- **Frontend**: Vanilla HTML5, CSS3, JavaScript (ES6+ модули, Pub-Sub Store, SPA Router). Без фреймворков.
+- **Backend**: Go (Golang) API Server (чистый net/http, pgxpool).
+- **Database**: PostgreSQL 16 (в Docker-контейнере).
 
-## Architecture
-Refer to the docs for details.
+## How to Run Locally (Как запустить локально)
+
+### 1. Подготовка окружения
+Убедитесь, что у вас установлены:
+- **Go 1.20+**
+- **Docker** и **Docker Desktop**
+
+### 2. Запуск базы данных
+В корне проекта выполните команду для поднятия контейнера PostgreSQL:
+```bash
+docker compose up -d
+```
+*База данных инициализируется на порту `5433` (настройки хранятся в файле `.env`). Данные сохраняются в именованном томе Docker.*
+
+### 3. Запуск веб-сервера бэкенда
+Запустите Go-приложение:
+```bash
+go run main.go
+```
+*Сервер при старте автоматически накатит SQL-миграции (создаст таблицы в БД) и начнет раздавать статический фронтенд.*
+
+### 4. Доступ к приложению
+Откройте браузер и перейдите по адресу:
+```
+http://localhost:8080/
+```
+
+---
+
+## Архитектура проекта
+Подробное описание схемы данных и структуры каталогов находится в файле [architecture.md](docs/architecture.md).
