@@ -97,4 +97,5 @@ jobs:
         script: |
           cd /root/workout-challenge-app
           git pull origin main
-          docker compose up -d --build
+          docker-compose down --remove-orphans || true
+          docker-compose up -d --build
