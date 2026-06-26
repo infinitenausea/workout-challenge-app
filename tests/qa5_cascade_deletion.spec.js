@@ -88,7 +88,7 @@ test.describe('QA-5: Cascade Deletion & Status Rollbacks (US-4 & US-8)', () => {
     // Verify list item is removed and progress is back to 0
     await expect(page.locator('.workout-list-item')).not.toBeVisible();
     await expect(page.locator('.progress-info')).toContainText('0 из 100');
-    await expect(page.locator('.toast.success')).toContainText('Тренировка успешно удалена');
+    await expect(page.locator('.toast.success').last()).toContainText('Тренировка успешно удалена');
   });
 
   test('TC-3.25: Status rollback completed -> active after deleting workout', async ({ page }) => {
