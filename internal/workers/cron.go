@@ -13,8 +13,8 @@ import (
 func StartFailedChallengeWorker(db *database.DBWrapper) *cron.Cron {
 	c := cron.New()
 	
-	// Run every hour. For testing purposes, you can change this to "* * * * *" (every minute)
-	_, err := c.AddFunc("@hourly", func() {
+	// Run every minute for testing/local purposes (originally @hourly)
+	_, err := c.AddFunc("* * * * *", func() {
 		ctx := context.Background()
 		
 		query := `

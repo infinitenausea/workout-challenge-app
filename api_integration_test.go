@@ -561,3 +561,166 @@ func TestAPI_Sprint3(t *testing.T) {
 		}
 	})
 }
+
+func TestAPI_Sprint6(t *testing.T) {
+	conn := getDBConn(t)
+	defer conn.Close(context.Background())
+
+	t.Run("Reset DB", func(t *testing.T) {
+		resetDatabase(t, conn)
+	})
+
+	// Epic: US-1 Создание упражнения
+	// TC-1.1 (Positive): Успешное создание
+	t.Run("TC-1.1 Positive: Create custom exercise", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"name": "Бег",
+		}
+		resp, body := sendRequest(t, "POST", "/api/exercises", "test_user", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData map[string]interface{}
+		if err := json.Unmarshal(body, &respData); err != nil {
+			t.Fatalf("Failed to unmarshal body: %v", err)
+		}
+
+		if respData["name"] != "Бег" {
+			t.Errorf("Expected exercise name 'Бег', got %v", respData["name"])
+		}
+		if respData["is_custom"] != true {
+			t.Errorf("Expected is_custom to be true, got %v", respData["is_custom"])
+		}
+		if respData["user_id"] != "test_user" {
+			t.Errorf("Expected user_id 'test_user', got %v", respData["user_id"])
+		}
+
+		// Verify in DB
+		var name string
+		var isCustom bool
+		var userID string
+		err := conn.QueryRow(context.Background(), "SELECT name, is_custom, user_id FROM exercises WHERE name = 'Бег' AND user_id = 'test_user'").Scan(&name, &isCustom, &userID)
+		if err != nil {
+			t.Fatalf("Failed to query exercise from DB: %v", err)
+		}
+		if name != "Бег" || !isCustom || userID != "test_user" {
+			t.Errorf("DB values mismatch: name=%s, isCustom=%t, userID=%s", name, isCustom, userID)
+		}
+	})
+
+	// TC-1.2 (Negative): Пустое имя
+	t.Run("TC-1.2 Negative: Empty and whitespace name", func(t *testing.T) {
+		payloadEmpty := map[string]interface{}{
+			"name": "",
+		}
+		resp, body := sendRequest(t, "POST", "/api/exercises", "test_user", payloadEmpty)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for empty name, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		payloadSpace := map[string]interface{}{
+			"name": "   ",
+		}
+		resp, body = sendRequest(t, "POST", "/api/exercises", "test_user", payloadSpace)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for whitespace name, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-1.3 (Negative): Дубликат имени
+	t.Run("TC-1.3 Negative: Duplicate exercise name", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"name": "Бег",
+		}
+		resp, body := sendRequest(t, "POST", "/api/exercises", "test_user", payload)
+		if resp.StatusCode != http.StatusConflict && resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 409 (Conflict) or 400, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// Epic: US-2, US-5 Создание челленджа и Дашборд
+	// TC-2.1 (Positive): Успешное создание челленджа
+	t.Run("TC-2.1 Positive: Create challenge successfully", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"name":         "3000 отжиманий",
+			"exercise_id":  1,
+			"target_value": 3000,
+			"start_date":   "2026-06-01T00:00:00Z",
+			"end_date":     "2026-06-30T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		var respData map[string]interface{}
+		if err := json.Unmarshal(body, &respData); err != nil {
+			t.Fatalf("Failed to unmarshal body: %v", err)
+		}
+
+		if respData["name"] != "3000 отжиманий" {
+			t.Errorf("Expected challenge name '3000 отжиманий', got %v", respData["name"])
+		}
+		if respData["status"] != "active" {
+			t.Errorf("Expected status to be 'active', got %v", respData["status"])
+		}
+		if respData["current_progress"] != float64(0) {
+			t.Errorf("Expected current_progress to be 0, got %v", respData["current_progress"])
+		}
+
+		// Verify in DB
+		var dbStatus string
+		var dbProgress int
+		err := conn.QueryRow(context.Background(), "SELECT status, current_progress FROM challenges WHERE name = '3000 отжиманий'").Scan(&dbStatus, &dbProgress)
+		if err != nil {
+			t.Fatalf("Failed to query challenge from DB: %v", err)
+		}
+		if dbStatus != "active" || dbProgress != 0 {
+			t.Errorf("DB values mismatch: status=%s, progress=%d", dbStatus, dbProgress)
+		}
+	})
+
+	// TC-2.2 (Negative): Дедлайн раньше старта
+	t.Run("TC-2.2 Negative: Deadline earlier than start date", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"name":         "Invalid Date Challenge",
+			"exercise_id":  1,
+			"target_value": 100,
+			"start_date":   "2026-06-30T00:00:00Z",
+			"end_date":     "2026-06-01T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", payload)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+
+	// TC-2.3 (Negative): Целевое количество <= 0
+	t.Run("TC-2.3 Negative: Target value <= 0", func(t *testing.T) {
+		payloadZero := map[string]interface{}{
+			"name":         "Zero Target Challenge",
+			"exercise_id":  1,
+			"target_value": 0,
+			"start_date":   "2026-06-01T00:00:00Z",
+			"end_date":     "2026-06-30T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", payloadZero)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for target_value = 0, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+
+		payloadNegative := map[string]interface{}{
+			"name":         "Negative Target Challenge",
+			"exercise_id":  1,
+			"target_value": -100,
+			"start_date":   "2026-06-01T00:00:00Z",
+			"end_date":     "2026-06-30T00:00:00Z",
+		}
+		resp, body = sendRequest(t, "POST", "/api/challenges", "default_user_1", payloadNegative)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for target_value = -100, got %d. Body: %s", resp.StatusCode, string(body))
+		}
+	})
+}
+
