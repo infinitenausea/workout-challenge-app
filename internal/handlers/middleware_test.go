@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"workout-challenge-app/internal/config"
 )
@@ -69,10 +70,9 @@ func TestTelegramAuthMiddleware(t *testing.T) {
 	token := "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
 	userJSON := `{"id":98765,"first_name":"Test"}`
 	
-	// Create the data_check_string using sorted order:
-	// auth_date=1700000000
-	// user={"id":98765,"first_name":"Test"}
-	dataCheckString := fmt.Sprintf("auth_date=1700000000\nuser=%s", userJSON)
+	// Create the data_check_string using sorted order
+	nowStr := fmt.Sprintf("%d", time.Now().Unix())
+	dataCheckString := fmt.Sprintf("auth_date=%s\nuser=%s", nowStr, userJSON)
 	
 	// Compute valid hash
 	secretMac := hmac.New(sha256.New, []byte("WebAppData"))
@@ -84,7 +84,7 @@ func TestTelegramAuthMiddleware(t *testing.T) {
 	validHash := hex.EncodeToString(mac.Sum(nil))
 	
 	// Format as URL query parameter string
-	validInitData := fmt.Sprintf("auth_date=1700000000&user=%s&hash=%s", userJSON, validHash)
+	validInitData := fmt.Sprintf("auth_date=%s&user=%s&hash=%s", nowStr, userJSON, validHash)
 
 	// TC-9.1: Успешная валидация initData по тестовому токену
 	t.Run("Prod: Valid signature", func(t *testing.T) {
@@ -138,7 +138,7 @@ func TestTelegramAuthMiddleware(t *testing.T) {
 		middleware := TelegramAuthMiddleware(cfg, testHandler)
 		
 		// Corrupt the hash
-		invalidInitData := fmt.Sprintf("auth_date=1700000000&user=%s&hash=%s", userJSON, "invalid_hash_value")
+		invalidInitData := fmt.Sprintf("auth_date=%s&user=%s&hash=%s", nowStr, userJSON, "invalid_hash_value")
 		
 		req := httptest.NewRequest(http.MethodGet, "/api/exercises", nil)
 		req.Header.Set("Authorization", "Bearer "+invalidInitData)
