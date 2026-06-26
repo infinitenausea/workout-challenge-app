@@ -377,3 +377,43 @@
 2. **TC-10.2 (Positive): Адаптация темы**
    * *Steps:* Переключить тему в клиенте Telegram с темной на светлую.
    * *Expected:* Цвета кнопок, фона и текста приложения автоматически меняются на лету.
+
+---
+
+## Epic: US-11 Тактильный отклик (Haptic Feedback)
+
+**Цель:** Проверить, что приложение вызывает методы Haptic Feedback при правильных сценариях.
+
+### UI/UX Тестирование (Telegram Emulator / Mock)
+1. **TC-11.1 (Positive): Вибрация при успешном добавлении тренировки**
+   * *Steps:* Добавить тренировку, перехватив вызовы `Telegram.WebApp.HapticFeedback.notificationOccurred`.
+   * *Expected:* Метод вызывается с аргументом `'success'`.
+2. **TC-11.2 (Negative): Вибрация при ошибке валидации**
+   * *Steps:* Отправить форму с отрицательным количеством, перехватить вызовы HapticFeedback.
+   * *Expected:* Метод вызывается с аргументом `'error'`.
+3. **TC-11.3 (Positive): Вибрация при удалении (Impact)**
+   * *Steps:* Подтвердить удаление тренировки в диалоге.
+   * *Expected:* Вызывается `impactOccurred('medium')`.
+4. **TC-11.4 (Edge): Отсутствие крашей вне Telegram**
+   * *Steps:* Запустить приложение в обычном браузере, выполнить действия (добавление, удаление).
+   * *Expected:* Приложение работает штатно, ошибки о `Telegram.WebApp.HapticFeedback is undefined` в консоли нет.
+
+---
+
+## Epic: US-12 Нативная навигация и закрытие приложения
+
+**Цель:** Проверить интеграцию BackButton и ClosingConfirmation.
+
+### UI/UX Тестирование (Telegram Emulator / Mock)
+1. **TC-12.1 (Positive): Отображение BackButton вне Дашборда**
+   * *Steps:* Перейти на страницу деталей челленджа.
+   * *Expected:* Вызывается `Telegram.WebApp.BackButton.show()`.
+2. **TC-12.2 (Positive): Скрытие BackButton на Дашборде**
+   * *Steps:* Вернуться с деталей на дашборд.
+   * *Expected:* Вызывается `Telegram.WebApp.BackButton.hide()`.
+3. **TC-12.3 (Positive): Включение защиты от закрытия при вводе**
+   * *Steps:* Открыть форму создания челленджа, начать вводить текст.
+   * *Expected:* Вызывается `Telegram.WebApp.enableClosingConfirmation()`.
+4. **TC-12.4 (Positive): Отключение защиты после сохранения/отмены**
+   * *Steps:* Успешно сохранить челлендж или вернуться на дашборд.
+   * *Expected:* Вызывается `Telegram.WebApp.disableClosingConfirmation()`.

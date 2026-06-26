@@ -4,6 +4,7 @@ import { Router } from './router.js';
 import { Dashboard } from './components/dashboard/dashboard.js';
 import { ChallengeForm } from './components/challenge/challenge-form.js';
 import { ChallengeDetail } from './components/challenge/challenge-detail.js';
+import { tg } from './telegram.js';
 
 // Define the routes map
 const routes = {
@@ -14,6 +15,48 @@ const routes = {
 
 // Initialize app when DOM is fully loaded
 document.addEventListener('DOMContentLoaded', async () => {
+  // 0. Initialize Telegram WebApp SDK
+  tg.ready();
+  tg.expand();
+
+  // If running inside Telegram, update the user badge and set user ID in api client
+  const tgUser = tg.getUser();
+  if (tgUser) {
+    const badge = document.getElementById('user-badge');
+    if (badge) {
+      badge.textContent = tgUser.username || `${tgUser.first_name} ${tgUser.last_name || ''}`.trim() || String(tgUser.id);
+    }
+    api.setUserId(String(tgUser.id));
+  }
+
+  // Theme application logic
+  const applyTheme = () => {
+    const tgScheme = tg.getColorScheme();
+    let isLight = false;
+    
+    if (tgScheme) {
+      isLight = tgScheme === 'light';
+    } else {
+      // Fallback for local development outside Telegram
+      isLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+    }
+
+    if (isLight) {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+  };
+
+  // Apply initial theme and listen to theme updates
+  applyTheme();
+  tg.onThemeChanged(applyTheme);
+
+  // Also listen to browser prefers-color-scheme changes when running outside Telegram
+  if (!tg.isReady() && window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
+  }
+
   const appContainer = document.getElementById('app');
   
   // 1. Initialize router

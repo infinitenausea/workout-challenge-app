@@ -7,8 +7,10 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	DatabaseDSN string
-	ServerPort  string
+	DatabaseDSN      string
+	ServerPort       string
+	AppEnv           string
+	TelegramBotToken string
 }
 
 // LoadConfig reads configuration from environment variables
@@ -25,8 +27,17 @@ func LoadConfig() *Config {
 		port = "8080"
 	}
 
+	appEnv := os.Getenv("APP_ENV")
+	if appEnv == "" {
+		appEnv = "development"
+	}
+
+	telegramBotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
+
 	return &Config{
-		DatabaseDSN: dsn,
-		ServerPort:  port,
+		DatabaseDSN:      dsn,
+		ServerPort:       port,
+		AppEnv:           appEnv,
+		TelegramBotToken: telegramBotToken,
 	}
 }
