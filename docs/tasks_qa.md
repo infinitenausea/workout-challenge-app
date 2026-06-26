@@ -352,3 +352,28 @@
 3. **TC-4.3 (Positive): Наличие кнопки удаления в UI**
    * *Steps:* Перейти на экран деталей любого челленджа.
    * *Expected:* Кнопка «🗑️ Удалить челлендж» с классом `danger` видима под списком тренировок.
+
+---
+
+## Epic: US-9, US-10 Интеграция Telegram Mini Apps
+
+**Цель:** Проверить авторизацию по initData и Fallback-режим, а также синхронизацию темы.
+
+### API Тестирование (Unit & Integration)
+1. **TC-9.1 (Positive): Валидация валидного initData**
+   * *Steps:* Сгенерировать корректный `initData` по тестовому токену `TELEGRAM_BOT_TOKEN`. Отправить запрос с заголовком `Authorization: Bearer <initData>`.
+   * *Expected:* HTTP 200/201 (успешная авторизация).
+2. **TC-9.2 (Negative): Неверный хэш initData**
+   * *Steps:* Отправить запрос с `Authorization: Bearer <initData>`, где `hash` заменен на случайный.
+   * *Expected:* HTTP 401 Unauthorized.
+3. **TC-9.3 (Positive): Fallback режим (Dev Bypass)**
+   * *Steps:* Отключить переменную окружения `TELEGRAM_BOT_TOKEN` для сервера. Отправить запрос без `Authorization`, но с `X-User-Id`.
+   * *Expected:* HTTP 200/201. Запрос пропускается.
+
+### UI/UX Тестирование (Telegram Emulator / Браузер)
+1. **TC-10.1 (Positive): Проверка передачи токена фронтендом**
+   * *Steps:* Открыть приложение. Посмотреть Network Requests.
+   * *Expected:* Все API запросы уходят с заголовком `Authorization: Bearer ...` (если `initData` доступен) или `X-User-Id` (если недоступен).
+2. **TC-10.2 (Positive): Адаптация темы**
+   * *Steps:* Переключить тему в клиенте Telegram с темной на светлую.
+   * *Expected:* Цвета кнопок, фона и текста приложения автоматически меняются на лету.

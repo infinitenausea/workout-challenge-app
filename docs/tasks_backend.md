@@ -366,3 +366,26 @@
 * **Ограничения:**
   * Реализация должна быть user-scoped: нельзя удалить чужой челлендж (проверка `user_id`).
   * Логировать все ошибки.
+
+---
+
+## Epic: US-9 Авторизация через Telegram Mini App
+
+**Цель:** Реализовать Middleware для валидации Telegram `initData` и безопасной аутентификации пользователей.
+
+### Задача 13: Создание TelegramAuthMiddleware
+* **Файлы:** `internal/handlers/middleware.go` (NEW), `internal/handlers/router.go`
+* **Описание:**
+  1. Реализовать пакет/функцию `TelegramAuthMiddleware(next http.Handler, botToken string) http.Handler`.
+  2. Middleware должен проверять наличие заголовка `Authorization: Bearer <initData>`.
+  3. Если токен бота не задан или пуст (режим обхода / dev-режим), Middleware должен считывать заголовок `X-User-Id` и передавать управление дальше (fallback).
+  4. Если токен задан, Middleware:
+     * Парсит `initData`.
+     * Проверяет подпись алгоритмом HMAC-SHA256 (сверка `hash` с расчетом по `WebAppData`).
+     * Проверяет, что `auth_date` не старше 24 часов.
+     * Если данные валидны, извлекает `user.id`, преобразует в строку и записывает в `X-User-Id` заголовка запроса или передает через `context`.
+     * Если невалидны — возвращает HTTP `401 Unauthorized`.
+  5. В `internal/handlers/router.go` обернуть все обработчики `/api/*` в этот Middleware.
+* **Ограничения:**
+  * Алгоритм валидации должен строго соответствовать документации Telegram.
+  * Тщательно логировать причины 401 ошибок (без утечки самого токена).

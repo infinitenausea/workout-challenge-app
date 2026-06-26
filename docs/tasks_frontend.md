@@ -433,3 +433,30 @@
 
 * **Ограничения:**
   * Кнопка должна быть стилизована как danger — красная, чтобы отличаться от остальных действий.
+
+---
+
+## Epic: US-9, US-10 Интеграция Telegram Mini Apps SDK
+
+**Цель:** Подключить SDK Telegram, настроить передачу `initData` и синхронизацию темы.
+
+### Задача 17: Инициализация Telegram SDK
+* **Файлы:** `frontend/index.html`, `frontend/js/telegram.js` (NEW), `frontend/js/api.js`, `frontend/js/app.js`
+* **Описание:**
+  1. В `index.html` добавить скрипт: `<script src="https://telegram.org/js/telegram-web-app.js"></script>`.
+  2. Создать `js/telegram.js`, экспортирующий функции для работы с `window.Telegram.WebApp`.
+  3. При старте `app.js` вызывать `Telegram.WebApp.ready()` и `Telegram.WebApp.expand()`.
+  4. В `api.js` обновить метод `_request`:
+     * Считывать `window.Telegram.WebApp.initData`.
+     * Если она есть — передавать в заголовке `Authorization: Bearer <initData>`.
+     * Если нет (локальная разработка браузером) — передавать `X-User-Id: default_user_1` как fallback.
+* **Ограничения:**
+  * Избегать крашей, если приложение открыто не в Telegram (объект `window.Telegram.WebApp` может быть не полностью заполнен).
+
+### Задача 18: Адаптация CSS под темы Telegram
+* **Файлы:** `frontend/css/main.css`
+* **Описание:**
+  1. В `main.css` (он уже частично использует CSS-переменные Telegram) убедиться, что все жестко заданные цвета заменены на fallback-переменные, если Telegram не передает свои (через `:root` fallback).
+  2. Убедиться, что интерфейс моментально реагирует на смену темы в клиенте (событие `themeChanged`), что обрабатывается самим Telegram SDK автоматически при использовании нативных `var(--tg-theme-...)`.
+* **Ограничения:**
+  * Для локальной разработки без Telegram тема должна быть адекватной (светлой/темной по умолчанию).
