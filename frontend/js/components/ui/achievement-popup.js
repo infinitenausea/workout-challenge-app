@@ -1,3 +1,5 @@
+import { tg } from '../../telegram.js';
+
 const achievementData = {
   first_step: { icon: '🌱', name: 'Первый шаг', desc: 'Внесена первая тренировка' },
   equator: { icon: '📈', name: 'Экватор', desc: 'Прогресс достиг 50%' },
@@ -48,6 +50,10 @@ function displayPopup(code, callback) {
   `;
 
   document.body.appendChild(overlay);
+
+  setTimeout(() => {
+    tg.triggerNotification('success');
+  }, 150);
 
   let cleanedUp = false;
   

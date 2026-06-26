@@ -169,14 +169,28 @@ CREATE INDEX IF NOT EXISTS idx_achievements_user ON user_achievements(user_id);
 
 ---
 
-## 6. Security & Integration Points (Безопасность)
+## 6. Security & Integration Points (Telegram WebApp Auth)
 
-### MVP-авторизация (Передача User ID)
+### Слой авторизации (Middleware)
 
-Все HTTP-запросы от фронтенда включают заголовок `X-User-Id: default_user_1`. Бэкенд считывает его и использует для фильтрации данных во всех SQL-запросах.
+Авторизация построена на базе валидации данных `initData`, получаемых от Telegram WebApp API. Это гарантирует, что запросы приходят только от реальных пользователей Telegram, запустивших приложение через нашего бота.
 
-### Переход на Telegram (Будущая интеграция)
+1. **Frontend:** При загрузке SPA подключается скрипт `telegram-web-app.js`. Извлекается строка `initData` и отправляется в заголовке `Authorization: Bearer <initData>` при каждом вызове API.
+2. **Backend Middleware:** Все запросы к `/api/*` проходят через `TelegramAuthMiddleware`.
+3. **Валидация подписи (Go):** 
+   - Из `initData` извлекается параметр `hash`.
+   - Остальные параметры сортируются по алфавиту и склеиваются через `\n` (`data_check_string`).
+   - Формируется секретный ключ: `HMAC-SHA256("WebAppData", TELEGRAM_BOT_TOKEN)`.
+   - Вычисляется подпись: `HMAC-SHA256(data_check_string, secret_key)`.
+   - Если вычисленная подпись совпадает с `hash` и поле `auth_date` актуально, запрос пропускается. Из данных извлекается `user.id`, который помещается в `context` запроса и используется во всех SQL-операциях.
 
-1. Фронтенд извлекает строку инициализации `initData` через Telegram WebApp API.
-2. Передает ее в заголовке `Authorization: Bearer <initData>`.
-3. Бэкенд (Go) валидирует подпись с помощью секрета бота (HMAC-SHA256) и извлекает реальный Telegram ID для выполнения запросов к БД.
+### Режим обхода для локальной разработки (Dev Bypass)
+
+Для обеспечения работоспособности E2E-тестов Playwright и локальной разработки без активного Telegram-окружения реализован механизм Fallback:
+- Если переменная окружения `TELEGRAM_BOT_TOKEN` не задана (локальный запуск без интеграции), бэкенд переходит в Dev-режим.
+- В этом режиме он принимает заголовок `X-User-Id: default_user_1`, как это было в MVP, и пропускает авторизацию.
+
+## 7. Frontend Telegram SDK Integration
+
+- **Адаптация темы:** Использование нативных CSS-переменных Telegram (например, `--tg-theme-bg-color`, `--tg-theme-text-color`, `--tg-theme-button-color`). 
+- **UX/Haptic:** Внедрение библиотеки или модуля-обертки `js/telegram.js`, который инкапсулирует вызовы `Telegram.WebApp.HapticFeedback` (на добавление тренировки, получение ачивки) и управление нативными кнопками (`BackButton`, `enableClosingConfirmation()`).

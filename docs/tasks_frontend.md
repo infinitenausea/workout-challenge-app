@@ -433,3 +433,81 @@
 
 * **Ограничения:**
   * Кнопка должна быть стилизована как danger — красная, чтобы отличаться от остальных действий.
+
+---
+
+## Epic: US-9, US-10 Интеграция Telegram Mini Apps SDK
+
+**Цель:** Подключить SDK Telegram, настроить передачу `initData` и синхронизацию темы.
+
+### Задача 17: Инициализация Telegram SDK
+* **Файлы:** `frontend/index.html`, `frontend/js/telegram.js` (NEW), `frontend/js/api.js`, `frontend/js/app.js`
+* **Описание:**
+  1. В `index.html` добавить скрипт: `<script src="https://telegram.org/js/telegram-web-app.js"></script>`.
+  2. Создать `js/telegram.js`, экспортирующий функции для работы с `window.Telegram.WebApp`.
+  3. При старте `app.js` вызывать `Telegram.WebApp.ready()` и `Telegram.WebApp.expand()`.
+  4. В `api.js` обновить метод `_request`:
+     * Считывать `window.Telegram.WebApp.initData`.
+     * Если она есть — передавать в заголовке `Authorization: Bearer <initData>`.
+     * Если нет (локальная разработка браузером) — передавать `X-User-Id: default_user_1` как fallback.
+* **Ограничения:**
+  * Избегать крашей, если приложение открыто не в Telegram (объект `window.Telegram.WebApp` может быть не полностью заполнен).
+
+### Задача 18: Адаптация CSS под темы Telegram (US-10)
+* **Файлы:** `frontend/css/main.css`, `frontend/js/telegram.js`
+* **Описание:**
+  1. В `main.css` убедиться, что **все** цвета приложения используют CSS-переменные Telegram (`var(--tg-theme-bg-color)`, `var(--tg-theme-text-color)`, `var(--tg-theme-button-color)`, `var(--tg-theme-button-text-color)`, `var(--tg-theme-hint-color)` и т.д.).
+  2. Добавить `fallback` значения для локальной разработки в секцию `:root`. Например: `--app-bg: var(--tg-theme-bg-color, #ffffff);` и использовать `--app-bg` в стилях.
+  3. В `js/telegram.js` добавить слушатель события `themeChanged` (через `Telegram.WebApp.onEvent('themeChanged', callback)`), чтобы принудительно перерисовывать специфичные элементы, если это потребуется (например, графики, если они отрисованы на Canvas и не обновляются через CSS).
+* **Ограничения:**
+  * Избегать захардкоженных hex или rgb цветов в компонентах.
+  * Тщательно проверить контрастность текстов на светлой и темной теме.
+
+---
+
+## Epic: US-11 Тактильный отклик (Haptic Feedback)
+
+**Цель:** Оживить интерфейс приложения, добавив вибрационный отклик на ключевые действия пользователя.
+
+### Задача 19: Интеграция Haptic Feedback через Telegram SDK
+* **Файлы:** `frontend/js/telegram.js`, `frontend/js/components/ui/workout-modal.js`, `frontend/js/components/ui/achievement-popup.js`, `frontend/js/components/challenge/challenge-detail.js`
+* **Описание:**
+  1. В `js/telegram.js` реализовать обертки для вызовов `Telegram.WebApp.HapticFeedback`:
+     * `triggerImpact(style)` — вызов `impactOccurred(style)`, где style может быть `'light'`, `'medium'`, `'heavy'`, `'rigid'`, `'soft'`.
+     * `triggerNotification(type)` — вызов `notificationOccurred(type)`, где type — `'error'`, `'success'`, `'warning'`.
+     * `triggerSelection()` — вызов `selectionChanged()`.
+  2. В `workout-modal.js`: 
+     * При успешном добавлении тренировки вызывать `telegram.triggerNotification('success')`.
+     * При ошибке валидации (пустое поле, отрицательное число) или ошибке API вызывать `telegram.triggerNotification('error')`.
+  3. В `achievement-popup.js`:
+     * При показе поп-апа с ачивкой вызывать `telegram.triggerNotification('success')` (в идеале с небольшой задержкой для синхронизации с анимацией).
+  4. В `challenge-detail.js`:
+     * При нажатии на кнопку удаления тренировки и подтверждении удалять с `telegram.triggerImpact('medium')`.
+     * При успешном удалении челленджа: `telegram.triggerNotification('success')`.
+* **Ограничения:**
+  * Обертки в `telegram.js` должны проверять доступность метода `Telegram.WebApp.HapticFeedback`, чтобы не ломать приложение при локальной разработке в браузере (через `if (window.Telegram?.WebApp?.HapticFeedback) { ... }`).
+  * Не злоупотреблять вибрацией (например, не вешать на каждый клик мыши/тап).
+
+---
+
+## Epic: US-12 Нативная навигация и закрытие приложения
+
+**Цель:** Интегрировать нативную кнопку «Назад» Telegram и защитить пользователя от случайного закрытия формы с несохраненными данными.
+
+### Задача 20: Нативная навигация (BackButton) и защита от закрытия (ClosingConfirmation)
+* **Файлы:** `frontend/js/telegram.js`, `frontend/js/router.js`, `frontend/js/app.js`, `frontend/js/components/challenge/challenge-form.js`
+* **Описание:**
+  1. **BackButton:**
+     * В `js/telegram.js` создать методы `showBackButton(onClick)` и `hideBackButton()`.
+     * Метод `showBackButton` должен вызывать `Telegram.WebApp.BackButton.show()` и назначать обработчик `Telegram.WebApp.BackButton.onClick(onClick)`.
+     * Метод `hideBackButton` вызывает `Telegram.WebApp.BackButton.hide()` и снимает обработчик через `offClick`.
+  2. **Интеграция с роутером (`js/router.js` или логика навигации):**
+     * При переходе на любой экран, кроме `dashboard` (например, `challenge-detail` или `challenge-form`), вызывать `telegram.showBackButton(() => store.navigate('dashboard'))`.
+     * При возврате на `dashboard` обязательно вызывать `telegram.hideBackButton()`.
+  3. **Защита от случайного закрытия (Closing Confirmation):**
+     * В `js/telegram.js` добавить методы `enableClosingConfirmation()` и `disableClosingConfirmation()` (обертки над `Telegram.WebApp.enableClosingConfirmation()`).
+     * В `challenge-form.js` повесить слушатель `input` на форму. Как только пользователь ввел любой текст в поля, вызывать `telegram.enableClosingConfirmation()`.
+     * При успешном сохранении челленджа (перед переходом на дашборд) или при нажатии кнопки отмены вызывать `telegram.disableClosingConfirmation()`.
+* **Ограничения:**
+  * Безопасные вызовы: все методы `telegram.js` должны проверять инициализацию SDK.
+  * Убедиться, что при нажатии на BackButton не только происходит переход на дашборд, но и очищается состояние формы, а также отключается подтверждение закрытия (`disableClosingConfirmation`).

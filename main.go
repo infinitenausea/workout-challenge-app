@@ -44,7 +44,7 @@ func main() {
 	})
 
 	// Setup API routes
-	handlers.SetupRoutes(mux, db)
+	handlers.SetupRoutes(mux, db, cfg)
 
 	// Serve frontend static files
 	fs := http.FileServer(http.Dir("./frontend"))

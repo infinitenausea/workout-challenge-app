@@ -1,4 +1,5 @@
 import { store } from './store.js';
+import { tg } from './telegram.js';
 
 export class Router {
   constructor(routes, container) {
@@ -20,6 +21,12 @@ export class Router {
     // If a view is already mounted, unmount it
     if (this.currentView && typeof this.currentView.unmount === 'function') {
       this.currentView.unmount();
+    }
+
+    if (route !== 'dashboard') {
+      tg.showBackButton(() => store.navigate('dashboard'));
+    } else {
+      tg.hideBackButton();
     }
 
     const ViewClass = this.routes[route];

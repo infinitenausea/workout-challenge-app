@@ -1,0 +1,100 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_secure_pass
+          POSTGRES_DB: workout_tracker
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26.1'
+        cache: true
+
+    - name: Verify Go dependencies
+      run: go mod verify
+
+    - name: Run Go Unit Tests
+      run: go test ./internal/...
+
+    - name: Build Backend Server
+      run: go build -o server main.go
+
+    - name: Start Backend Server
+      env:
+        DATABASE_DSN: postgres://postgres:postgres_secure_pass@localhost:5433/workout_tracker?sslmode=disable
+        PORT: 8080
+        APP_ENV: development
+      run: |
+        ./server &
+        echo "Waiting for server to start..."
+        timeout 15s bash -c 'until nc -z localhost 8080; do sleep 1; done'
+
+    - name: Run Go API Integration Tests
+      env:
+        DATABASE_DSN: postgres://postgres:postgres_secure_pass@localhost:5433/workout_tracker?sslmode=disable
+      run: go test api_integration_test.go
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Node Dependencies
+      run: npm ci
+
+    - name: Cache Playwright Browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/msplaywright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-
+
+    - name: Install Playwright Browsers
+      run: npx playwright install --with-deps
+
+    - name: Run Playwright E2E Tests
+      run: npx playwright test
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Deploy to Production Server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /root/workout-challenge-app
+          git pull origin main
+          docker-compose up -d --build

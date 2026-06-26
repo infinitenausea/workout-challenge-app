@@ -1,6 +1,7 @@
 import { store } from '../../store.js';
 import { api } from '../../api.js';
 import { WorkoutModal } from '../ui/workout-modal.js';
+import { tg } from '../../telegram.js';
 
 export class ChallengeDetail {
   constructor(container) {
@@ -56,6 +57,7 @@ export class ChallengeDetail {
   async handleDeleteWorkout(workoutId) {
     if (!confirm('Вы уверены, что хотите удалить эту тренировку?')) return;
 
+    tg.triggerImpact('medium');
     try {
       const state = store.getState();
       const challengeId = state.currentChallengeId;
@@ -82,6 +84,7 @@ export class ChallengeDetail {
     try {
       await api.deleteChallenge(challengeId);
       store.removeChallenge(challengeId);
+      tg.triggerNotification('success');
       store.navigate('dashboard');
       this.showToast('Челлендж удалён', 'success');
     } catch (error) {

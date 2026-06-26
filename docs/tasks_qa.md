@@ -352,3 +352,77 @@
 3. **TC-4.3 (Positive): Наличие кнопки удаления в UI**
    * *Steps:* Перейти на экран деталей любого челленджа.
    * *Expected:* Кнопка «🗑️ Удалить челлендж» с классом `danger` видима под списком тренировок.
+
+---
+
+## Epic: US-9, US-10 Интеграция Telegram Mini Apps
+
+**Цель:** Проверить авторизацию по initData и Fallback-режим, а также синхронизацию темы.
+
+### API Тестирование (Unit & Integration)
+1. **TC-9.1 (Positive): Валидация валидного initData**
+   * *Steps:* Сгенерировать корректный `initData` по тестовому токену `TELEGRAM_BOT_TOKEN`. Отправить запрос с заголовком `Authorization: Bearer <initData>`.
+   * *Expected:* HTTP 200/201 (успешная авторизация).
+2. **TC-9.2 (Negative): Неверный хэш initData**
+   * *Steps:* Отправить запрос с `Authorization: Bearer <initData>`, где `hash` заменен на случайный.
+   * *Expected:* HTTP 401 Unauthorized.
+3. **TC-9.3 (Positive): Fallback режим (Dev Bypass)**
+   * *Steps:* Отключить переменную окружения `TELEGRAM_BOT_TOKEN` для сервера. Отправить запрос без `Authorization`, но с `X-User-Id`.
+   * *Expected:* HTTP 200/201. Запрос пропускается.
+
+### UI/UX Тестирование (Telegram Emulator / Браузер)
+1. **TC-10.1 (Positive): Проверка передачи токена фронтендом**
+   * *Steps:* Открыть приложение. Посмотреть Network Requests.
+   * *Expected:* Все API запросы уходят с заголовком `Authorization: Bearer ...` (если `initData` доступен) или `X-User-Id` (если недоступен).
+2. **TC-10.2 (Positive): Адаптация темы**
+   * *Steps:* Переключить тему в клиенте Telegram с темной на светлую.
+   * *Expected:* Цвета кнопок, фона и текста приложения автоматически меняются на лету.
+
+---
+
+## Epic: US-11 Тактильный отклик (Haptic Feedback)
+
+**Цель:** Проверить, что приложение вызывает методы Haptic Feedback при правильных сценариях.
+
+### UI/UX Тестирование (Telegram Emulator / Mock)
+1. **TC-11.1 (Positive): Вибрация при успешном добавлении тренировки**
+   * *Steps:* Добавить тренировку, перехватив вызовы `Telegram.WebApp.HapticFeedback.notificationOccurred`.
+   * *Expected:* Метод вызывается с аргументом `'success'`.
+2. **TC-11.2 (Negative): Вибрация при ошибке валидации**
+   * *Steps:* Отправить форму с отрицательным количеством, перехватить вызовы HapticFeedback.
+   * *Expected:* Метод вызывается с аргументом `'error'`.
+3. **TC-11.3 (Positive): Вибрация при удалении (Impact)**
+   * *Steps:* Подтвердить удаление тренировки в диалоге.
+   * *Expected:* Вызывается `impactOccurred('medium')`.
+4. **TC-11.4 (Edge): Отсутствие крашей вне Telegram**
+   * *Steps:* Запустить приложение в обычном браузере, выполнить действия (добавление, удаление).
+   * *Expected:* Приложение работает штатно, ошибки о `Telegram.WebApp.HapticFeedback is undefined` в консоли нет.
+
+---
+
+## Epic: US-12 Нативная навигация и закрытие приложения
+
+**Цель:** Проверить интеграцию BackButton и ClosingConfirmation.
+
+### UI/UX Тестирование (Telegram Emulator / Mock)
+1. **TC-12.1 (Positive): Отображение BackButton вне Дашборда**
+   * *Steps:* Перейти на страницу деталей челленджа.
+   * *Expected:* Вызывается `Telegram.WebApp.BackButton.show()`.
+2. **TC-12.2 (Positive): Скрытие BackButton на Дашборде**
+   * *Steps:* Вернуться с деталей на дашборд.
+   * *Expected:* Вызывается `Telegram.WebApp.BackButton.hide()`.
+3. **TC-12.3 (Positive): Включение защиты от закрытия при вводе**
+   * *Steps:* Открыть форму создания челленджа, начать вводить текст.
+   * *Expected:* Вызывается `Telegram.WebApp.enableClosingConfirmation()`.
+4. **TC-12.4 (Positive): Отключение защиты после сохранения/отмены**
+   * *Steps:* Успешно сохранить челлендж или вернуться на дашборд.
+   * *Expected:* Вызывается `Telegram.WebApp.disableClosingConfirmation()`.
+
+---
+
+## Epic: Архитектура и Безопасность
+
+### Задача 6: Exploratory Testing интеграции с Telegram (QA-6)
+* **Файлы:** N/A (Manual Testing)
+* **Описание:** Провести ручное исследовательское тестирование приложения в реальном окружении Telegram Mini Apps (с мобильного устройства или десктоп-клиента). Проверить бесшовную авторизацию, применение цветовой темы, работу Haptic Feedback и навигацию кнопкой "Назад".
+* **Ограничения:** Описать все найденные баги в виде Issues. Является блокером для настройки CD и раскатки в продакшен.

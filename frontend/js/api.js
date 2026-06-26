@@ -1,3 +1,5 @@
+import { tg } from './telegram.js';
+
 const BASE_URL = '/api';
 
 class ApiClient {
@@ -15,9 +17,15 @@ class ApiClient {
     // Set headers
     const headers = {
       'Content-Type': 'application/json',
-      'X-User-Id': this.userId,
       ...(options.headers || {})
     };
+
+    const initData = tg.getInitData();
+    if (initData) {
+      headers['Authorization'] = `Bearer ${initData}`;
+    } else {
+      headers['X-User-Id'] = this.userId;
+    }
 
     const config = {
       ...options,
