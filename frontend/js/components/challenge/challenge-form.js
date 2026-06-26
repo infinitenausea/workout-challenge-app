@@ -1,5 +1,6 @@
 import { store } from '../../store.js';
 import { api } from '../../api.js';
+import { tg } from '../../telegram.js';
 
 export class ChallengeForm {
   constructor(container) {
@@ -17,6 +18,7 @@ export class ChallengeForm {
     if (this.unsubscribe) {
       this.unsubscribe();
     }
+    tg.disableClosingConfirmation();
   }
 
   showToast(message, type = 'success') {
@@ -105,6 +107,7 @@ export class ChallengeForm {
       const newChallenge = await api.createChallenge(challengePayload);
       store.addChallenge(newChallenge);
       this.showToast('Челлендж успешно создан!', 'success');
+      tg.disableClosingConfirmation();
 
       // Navigate back to dashboard
       store.navigate('dashboard');
@@ -191,6 +194,9 @@ export class ChallengeForm {
     // Attach listeners
     const form = this.container.querySelector('#challenge-form');
     form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+    form.addEventListener('input', () => {
+      tg.enableClosingConfirmation();
+    });
 
     const select = this.container.querySelector('#exercise_id');
     const customGroup = this.container.querySelector('#custom-exercise-group');
@@ -207,6 +213,7 @@ export class ChallengeForm {
 
     const cancelBtn = this.container.querySelector('#cancel-btn');
     cancelBtn.addEventListener('click', () => {
+      tg.disableClosingConfirmation();
       store.navigate('dashboard');
     });
   }

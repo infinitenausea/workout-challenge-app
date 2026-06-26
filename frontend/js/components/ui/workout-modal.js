@@ -1,6 +1,7 @@
 import { store } from '../../store.js';
 import { api } from '../../api.js';
 import { showAchievementPopup } from './achievement-popup.js';
+import { tg } from '../../telegram.js';
 
 export class WorkoutModal {
   constructor() {
@@ -45,6 +46,9 @@ export class WorkoutModal {
 
     // Bind events
     this.overlay.querySelector('#workout-form').addEventListener('submit', (e) => this.handleSubmit(e));
+    this.overlay.querySelector('#workout-form').addEventListener('input', () => {
+      tg.enableClosingConfirmation();
+    });
     this.overlay.querySelector('#modal-close-x').addEventListener('click', () => this.close());
     this.overlay.querySelector('#modal-cancel-btn').addEventListener('click', () => this.close());
     
@@ -58,6 +62,7 @@ export class WorkoutModal {
   }
 
   close() {
+    tg.disableClosingConfirmation();
     if (this.overlay) {
       this.overlay.remove();
       this.overlay = null;
@@ -97,10 +102,12 @@ export class WorkoutModal {
 
     if (isNaN(value) || value <= 0) {
       this.showToast('Количество должно быть больше 0', 'error');
+      tg.triggerNotification('error');
       return;
     }
     if (!workout_date) {
       this.showToast('Выберите дату тренировки', 'error');
+      tg.triggerNotification('error');
       return;
     }
 
@@ -128,6 +135,7 @@ export class WorkoutModal {
 
         // Toast success
         this.showToast(`Тренировка добавлена! +${value} повторений`, 'success');
+        tg.triggerNotification('success');
 
         // Check and display achievements
         if (response.unlocked_achievements && response.unlocked_achievements.length > 0) {
@@ -140,6 +148,7 @@ export class WorkoutModal {
     } catch (error) {
       console.error('Failed to create workout:', error);
       this.showToast(error.message || 'Ошибка сохранения тренировки', 'error');
+      tg.triggerNotification('error');
       submitBtn.disabled = false;
     }
   }
