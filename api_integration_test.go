@@ -608,7 +608,73 @@ func TestAPI_Sprint3(t *testing.T) {
 			t.Errorf("Expected 404 for non-existent challenge, got %d. Body: %s", resp.StatusCode, string(body))
 		}
 	})
+
+	// TC-3.19 (Positive): Удаление тренировки откатывает ачивки
+	t.Run("TC-3.19 Positive: Delete workout revokes achievements", func(t *testing.T) {
+		// Challenge 4
+		c4Payload := map[string]interface{}{
+			"name":         "Challenge 4",
+			"exercise_id":  1,
+			"target_value": 100,
+			"start_date":   "2026-06-01T00:00:00Z",
+			"end_date":     "2026-07-01T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", c4Payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to create Challenge 4: %s", string(body))
+		}
+		var c4Data map[string]interface{}
+		json.Unmarshal(body, &c4Data)
+		c4ID := int(c4Data["id"].(float64))
+
+		// Add workout that triggers equator and first_step
+		wPayload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        60,
+		}
+		resp, body = sendRequest(t, "POST", fmt.Sprintf("/api/challenges/%d/workouts", c4ID), "default_user_1", wPayload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to add workout: %s", string(body))
+		}
+		var wData map[string]interface{}
+		json.Unmarshal(body, &wData)
+		w := wData["workout"].(map[string]interface{})
+		wID := int(w["id"].(float64))
+
+		// Verify equator is unlocked
+		resp, body = sendRequest(t, "GET", fmt.Sprintf("/api/challenges/%d/achievements", c4ID), "default_user_1", nil)
+		var achList []map[string]interface{}
+		json.Unmarshal(body, &achList)
+		foundEquator := false
+		for _, ach := range achList {
+			if ach["achievement_code"] == "equator" {
+				foundEquator = true
+			}
+		}
+		if !foundEquator {
+			t.Fatalf("Equator not unlocked")
+		}
+
+		// Delete workout
+		resp, _ = sendRequest(t, "DELETE", fmt.Sprintf("/api/workouts/%d", wID), "default_user_1", nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Failed to delete workout")
+		}
+
+		// Verify equator and first_step are revoked
+		resp, body = sendRequest(t, "GET", fmt.Sprintf("/api/challenges/%d/achievements", c4ID), "default_user_1", nil)
+		json.Unmarshal(body, &achList)
+		for _, ach := range achList {
+			if ach["achievement_code"] == "equator" {
+				t.Errorf("Equator achievement was not revoked")
+			}
+			if ach["achievement_code"] == "first_step" {
+				t.Errorf("First step achievement was not revoked")
+			}
+		}
+	})
 }
+
 
 func TestAPI_Sprint6(t *testing.T) {
 	conn := getDBConn(t)

@@ -161,3 +161,97 @@ func (db *DBWrapper) GetChallengeAchievements(ctx context.Context, userID string
 
 	return achievements, nil
 }
+
+// CheckAndRevokeAchievements checks all achievements and revokes any that no longer meet their conditions.
+func (db *DBWrapper) CheckAndRevokeAchievements(ctx context.Context, userID string, challengeID int, newProgress, targetValue int) error {
+	// Helper function to revoke
+	revoke := func(code string) {
+		_, err := db.Pool.Exec(ctx, "DELETE FROM user_achievements WHERE user_id = $1 AND challenge_id = $2 AND achievement_code = $3", userID, challengeID, code)
+		if err != nil {
+			log.Printf("CheckAndRevokeAchievements: failed to revoke %s: %v\n", code, err)
+		}
+	}
+
+	// 1. first_step
+	var firstStepEligible bool
+	err := db.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM workouts WHERE user_id = $1 AND challenge_id = $2 LIMIT 1)", userID, challengeID).Scan(&firstStepEligible)
+	if err == nil && !firstStepEligible {
+		revoke("first_step")
+	}
+
+	// 2. equator
+	if newProgress*2 < targetValue {
+		revoke("equator")
+	}
+
+	// 3. hero & 8. final_spurt
+	if newProgress < targetValue {
+		revoke("hero")
+		revoke("final_spurt")
+	}
+
+	// 4. stability
+	rows, err := db.Pool.Query(ctx, "SELECT DISTINCT workout_date FROM workouts WHERE user_id = $1 AND challenge_id = $2 ORDER BY workout_date DESC LIMIT 10", userID, challengeID)
+	if err == nil {
+		var dates []time.Time
+		for rows.Next() {
+			var d time.Time
+			if rows.Scan(&d) == nil {
+				dates = append(dates, d)
+			}
+		}
+		rows.Close()
+
+		stabilityEligible := false
+		for i := 0; i <= len(dates)-3; i++ {
+			d1 := dates[i]
+			d2 := dates[i+1]
+			d3 := dates[i+2]
+			utc1 := time.Date(d1.Year(), d1.Month(), d1.Day(), 0, 0, 0, 0, time.UTC)
+			utc2 := time.Date(d2.Year(), d2.Month(), d2.Day(), 0, 0, 0, 0, time.UTC)
+			utc3 := time.Date(d3.Year(), d3.Month(), d3.Day(), 0, 0, 0, 0, time.UTC)
+
+			if utc1.Sub(utc2) == 24*time.Hour && utc2.Sub(utc3) == 24*time.Hour {
+				stabilityEligible = true
+				break
+			}
+		}
+		if !stabilityEligible {
+			revoke("stability")
+		}
+	}
+
+	// 5. power_start
+	var powerStartEligible bool
+	err = db.Pool.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM workouts WHERE user_id = $1 AND challenge_id = $2 AND value >= $3 LIMIT 1)", userID, challengeID, float64(targetValue)*0.25).Scan(&powerStartEligible)
+	if err == nil && !powerStartEligible {
+		revoke("power_start")
+	}
+
+	// 6. overachiever
+	if float64(newProgress) < float64(targetValue)*1.2 {
+		revoke("overachiever")
+	}
+
+	// 7. early_bird
+	rowsEB, err := db.Pool.Query(ctx, "SELECT created_at FROM workouts WHERE user_id = $1 AND challenge_id = $2", userID, challengeID)
+	if err == nil {
+		earlyBirdEligible := false
+		for rowsEB.Next() {
+			var ca time.Time
+			if rowsEB.Scan(&ca) == nil {
+				h := ca.Hour()
+				if h >= 5 && h < 9 {
+					earlyBirdEligible = true
+					break
+				}
+			}
+		}
+		rowsEB.Close()
+		if !earlyBirdEligible {
+			revoke("early_bird")
+		}
+	}
+
+	return nil
+}

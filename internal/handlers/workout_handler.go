@@ -153,6 +153,12 @@ func (h *WorkoutHandler) HandleDeleteWorkout(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Check and revoke achievements if necessary
+	err = h.db.CheckAndRevokeAchievements(r.Context(), userID, challenge.ID, challenge.CurrentProgress, challenge.TargetValue)
+	if err != nil {
+		log.Printf("HandleDeleteWorkout: failed to check and revoke achievements: %v\n", err)
+	}
+
 	resp := deleteWorkoutResponse{
 		Success:   true,
 		Challenge: challenge,
