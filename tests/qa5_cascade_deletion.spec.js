@@ -50,8 +50,6 @@ test.describe('QA-5: Cascade Deletion & Status Rollbacks (US-4 & US-8)', () => {
         store.setExercises(exercises);
         const challenges = await api.getChallenges();
         store.setChallenges(challenges);
-        const achievements = await api.getAchievements();
-        store.setAchievements(achievements);
       } catch (e) {
         console.error(e);
       }

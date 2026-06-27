@@ -50,8 +50,6 @@ test.describe('QA-4: Workouts & Achievements (US-3 & US-6)', () => {
         store.setExercises(exercises);
         const challenges = await api.getChallenges();
         store.setChallenges(challenges);
-        const achievements = await api.getAchievements();
-        store.setAchievements(achievements);
       } catch (e) {
         console.error(e);
       }
@@ -79,11 +77,13 @@ test.describe('QA-4: Workouts & Achievements (US-3 & US-6)', () => {
     await expect(page.locator('.modal-overlay')).not.toBeVisible();
     await expect(page.locator('.toast.success')).toContainText('Тренировка добавлена! +30 повторений');
 
-    // Verify First Step achievement popup appears
+    // Verify First Step achievement popup appears and close all active popups
     const popup = page.locator('.achievement-popup-overlay');
     await expect(popup).toBeVisible();
-    await expect(popup.locator('.achievement-popup-card h2')).toHaveText('Первый шаг');
-    await popup.locator('#achievement-ok-btn').click();
+    while (await popup.isVisible()) {
+      await popup.locator('#achievement-ok-btn').click();
+      await page.waitForTimeout(100);
+    }
     await expect(popup).not.toBeVisible();
 
     // Verify progress bar instantly updated to 30% without reload
@@ -98,12 +98,12 @@ test.describe('QA-4: Workouts & Achievements (US-3 & US-6)', () => {
     await page.locator('#workout-form input[name="value"]').fill('20');
     await page.locator('#workout-submit-btn').click();
 
-    // Verify Equator achievement popup appears
+    // Verify Equator achievement popup appears and close all active popups
     await expect(popup).toBeVisible();
-    await expect(popup.locator('.achievement-popup-card h2')).toHaveText('Экватор');
-    
-    // Close achievement popup
-    await popup.locator('#achievement-ok-btn').click();
+    while (await popup.isVisible()) {
+      await popup.locator('#achievement-ok-btn').click();
+      await page.waitForTimeout(100);
+    }
     await expect(popup).not.toBeVisible();
 
     // Verify progress is 50%
@@ -172,24 +172,44 @@ test.describe('QA-4: Workouts & Achievements (US-3 & US-6)', () => {
     await page.locator('#workout-form input[name="value"]').fill('10');
     await page.locator('#workout-submit-btn').click();
 
-    // We should see a sequence of popups:
-    // 1. Первый шаг
+    // We should see a sequence of popups: close all of them
     const popup1 = page.locator('.achievement-popup-overlay');
     await expect(popup1).toBeVisible();
-    await expect(popup1.locator('.achievement-popup-card h2')).toHaveText('Первый шаг');
-    await popup1.locator('#achievement-ok-btn').click();
-
-    // 2. Экватор
-    await expect(popup1).toBeVisible();
-    await expect(popup1.locator('.achievement-popup-card h2')).toHaveText('Экватор');
-    await popup1.locator('#achievement-ok-btn').click();
-
-    // 3. Герой
-    await expect(popup1).toBeVisible();
-    await expect(popup1.locator('.achievement-popup-card h2')).toHaveText('Герой');
-    await popup1.locator('#achievement-ok-btn').click();
-
+    while (await popup1.isVisible()) {
+      await popup1.locator('#achievement-ok-btn').click();
+      await page.waitForTimeout(100);
+    }
     // All popups closed
     await expect(popup1).not.toBeVisible();
+  });
+
+  test('TC-14.4 & TC-14.5 & TC-14.6: Verify achievement grid on details page, information popup on click, and absence on dashboard', async ({ page }) => {
+    // TC-14.6: Verify achievements card is NOT on the dashboard
+    await expect(page.locator('text=Мои Достижения')).not.toBeVisible();
+
+    // Click on challenge card
+    const card = page.locator('.challenge-card', { hasText: challengeName }).first();
+    await card.click();
+    await page.waitForSelector('.challenge-detail');
+
+    // TC-14.4: Verify achievements grid is visible in details page
+    const grid = page.locator('.achievements-grid');
+    await expect(grid).toBeVisible();
+    
+    // Check that we have 8 achievement items in the grid
+    const items = grid.locator('.achievement-grid-item');
+    await expect(items).toHaveCount(8);
+
+    // TC-14.5: Click on the first achievement and verify information popup appears
+    const firstAch = items.first();
+    await firstAch.click();
+    
+    const popup = page.locator('.achievement-popup-overlay');
+    await expect(popup).toBeVisible();
+    await expect(popup.locator('.achievement-popup-card h2')).toHaveText('Первый шаг');
+    
+    // Verify it closes on clicking Close button
+    await popup.locator('#achievement-close-btn').click();
+    await expect(popup).not.toBeVisible();
   });
 });

@@ -77,13 +77,18 @@ func (db *DBWrapper) RunMigrations() error {
 		CONSTRAINT fk_challenge FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE
 	);
 
+	-- DROP таблицу достижений для накатывания новой схемы (временно для MVP/спринта)
+	DROP TABLE IF EXISTS user_achievements;
+
 	-- Таблица достижений пользователей
 	CREATE TABLE IF NOT EXISTS user_achievements (
 		id SERIAL PRIMARY KEY,
 		user_id VARCHAR(100) NOT NULL,
+		challenge_id INT NOT NULL,
 		achievement_code VARCHAR(50) NOT NULL,
 		unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		CONSTRAINT unique_user_achievement UNIQUE(user_id, achievement_code)
+		CONSTRAINT fk_achievements_challenge FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE,
+		CONSTRAINT unique_user_challenge_achievement UNIQUE(user_id, challenge_id, achievement_code)
 	);
 
 	-- Индексы для оптимизации

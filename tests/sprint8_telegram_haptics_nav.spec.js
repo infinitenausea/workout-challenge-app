@@ -113,8 +113,6 @@ test.describe('QA-11/12: Telegram Haptic Feedback & Native Navigation (US-11 & U
         store.setExercises(exercises);
         const challenges = await api.getChallenges();
         store.setChallenges(challenges);
-        const achievements = await api.getAchievements();
-        store.setAchievements(achievements);
       } catch (e) {
         console.error(e);
       }
@@ -324,8 +322,6 @@ test.describe('QA-11/12 Edge: Local Dev Fallback (Running outside Telegram)', ()
         store.setExercises(exercises);
         const challenges = await api.getChallenges();
         store.setChallenges(challenges);
-        const achievements = await api.getAchievements();
-        store.setAchievements(achievements);
       } catch (e) {
         console.error(e);
       }

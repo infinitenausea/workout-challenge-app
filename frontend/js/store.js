@@ -7,7 +7,7 @@ class Store {
       currentChallengeId: null,
       currentChallenge: null,
       workouts: [],
-      achievements: [],
+      currentChallengeAchievements: [],
       theme: 'dark'
     };
     this.listeners = [];
@@ -147,16 +147,16 @@ class Store {
     });
   }
 
-  // Action: Set achievements (can be achievement objects or codes)
-  setAchievements(achievements) {
+  // Action: Set current challenge achievements (can be achievement objects or codes)
+  setCurrentChallengeAchievements(achievements) {
     const codes = achievements.map(a => typeof a === 'object' ? a.achievement_code : a);
-    this.setState({ achievements: codes });
+    this.setState({ currentChallengeAchievements: codes });
   }
 
   // Action: Add newly unlocked achievements
   addAchievements(newCodes) {
     this.setState({
-      achievements: [...this.state.achievements, ...newCodes]
+      currentChallengeAchievements: [...(this.state.currentChallengeAchievements || []), ...newCodes]
     });
   }
 

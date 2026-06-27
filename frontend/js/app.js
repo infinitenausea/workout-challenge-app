@@ -85,13 +85,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     store.setChallenges([]);
   }
 
-  // 5. Fetch initial achievements from API and load into store
-  try {
-    const achievements = await api.getAchievements();
-    store.setAchievements(achievements);
-  } catch (error) {
-    console.error('Failed to load initial achievements:', error);
-    store.setAchievements([]);
-  }
+
 });
 

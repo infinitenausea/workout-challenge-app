@@ -124,8 +124,8 @@ class ApiClient {
   }
 
   // Achievements
-  getAchievements() {
-    return this._request('/achievements');
+  getChallengeAchievements(challengeId) {
+    return this._request(`/challenges/${challengeId}/achievements`);
   }
 }
 

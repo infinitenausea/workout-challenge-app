@@ -2,6 +2,7 @@ import { store } from '../../store.js';
 import { api } from '../../api.js';
 import { WorkoutModal } from '../ui/workout-modal.js';
 import { tg } from '../../telegram.js';
+import { showAchievementInfo } from '../ui/achievement-popup.js';
 
 export class ChallengeDetail {
   constructor(container) {
@@ -15,6 +16,7 @@ export class ChallengeDetail {
     // Clear previous challenge detail to avoid flash of old content
     store.setCurrentChallenge(null);
     store.setWorkouts([]);
+    store.setCurrentChallengeAchievements([]);
 
     const state = store.getState();
     const challengeId = state.currentChallengeId;
@@ -24,6 +26,14 @@ export class ChallengeDetail {
         const detail = await api.getChallengeDetail(challengeId);
         store.setCurrentChallenge(detail);
         store.setWorkouts(detail.workouts || []);
+        
+        try {
+          const achievements = await api.getChallengeAchievements(challengeId);
+          store.setCurrentChallengeAchievements(achievements);
+        } catch (achErr) {
+          console.error('Failed to load challenge achievements:', achErr);
+          store.setCurrentChallengeAchievements([]);
+        }
       } catch (error) {
         console.error('Failed to load challenge details:', error);
         this.showToast('Ошибка при загрузке деталей челленджа', 'error');
@@ -133,6 +143,33 @@ export class ChallengeDetail {
       }
     }
 
+    // Achievements grid mapping
+    const allAchievements = [
+      { code: 'first_step', icon: '🌱', name: 'Первый шаг' },
+      { code: 'equator', icon: '📈', name: 'Экватор' },
+      { code: 'hero', icon: '⚡', name: 'Герой' },
+      { code: 'stability', icon: '🔥', name: 'Стабильность' },
+      { code: 'power_start', icon: '🚀', name: 'Ударный старт' },
+      { code: 'overachiever', icon: '🏆', name: 'Перевыполнение' },
+      { code: 'early_bird', icon: '🌅', name: 'Ранняя пташка' },
+      { code: 'final_spurt', icon: '🏁', name: 'Финальный рывок' }
+    ];
+
+    const currentAchCodes = state.currentChallengeAchievements || [];
+    const achievementsHTML = `
+      <div class="achievements-grid">
+        ${allAchievements.map(ach => {
+          const isUnlocked = currentAchCodes.includes(ach.code);
+          return `
+            <div class="achievement-grid-item ${isUnlocked ? '' : 'locked'}" data-code="${ach.code}">
+              <div class="ach-icon">${ach.icon}</div>
+              <div class="ach-name">${ach.name}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
     // Workouts list
     let workoutsListHTML = '';
     if (!state.workouts || state.workouts.length === 0) {
@@ -183,6 +220,11 @@ export class ChallengeDetail {
           <div class="countdown-timer" style="margin-top: 16px; font-weight: 600; color: ${c.status === 'completed' ? 'var(--accent-color)' : 'var(--tg-theme-hint-color)'};">
             ${timerText}
           </div>
+
+          <div style="margin-top: 16px; border-top: 1px solid var(--tg-theme-secondary-bg-color); padding-top: 16px;">
+            <h4 style="margin-bottom: 12px; font-size: 14px; color: var(--tg-theme-hint-color);">Достижения челленджа</h4>
+            ${achievementsHTML}
+          </div>
         </div>
 
         <button id="add-workout-btn" class="add-workout-btn" ${isInactive ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''} style="width: 100%; margin-bottom: 24px;">
@@ -230,6 +272,14 @@ export class ChallengeDetail {
 
     this.container.querySelector('#delete-challenge-btn').addEventListener('click', () => {
       this.handleDeleteChallenge(c.id);
+    });
+
+    // Bind clicks to achievements
+    this.container.querySelectorAll('.achievement-grid-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        const code = e.currentTarget.getAttribute('data-code');
+        showAchievementInfo(code);
+      });
     });
   }
 }

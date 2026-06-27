@@ -67,6 +67,12 @@ func SetupRoutes(mux *http.ServeMux, db *database.DBWrapper, cfg *config.Config)
 			} else {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
+		} else if len(parts) == 2 && parts[0] != "" && parts[1] == "achievements" {
+			if r.Method == http.MethodGet {
+				achievementHandler.HandleList(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
 		} else {
 			http.NotFound(w, r)
 		}
@@ -80,12 +86,6 @@ func SetupRoutes(mux *http.ServeMux, db *database.DBWrapper, cfg *config.Config)
 		}
 	}))
 
-	mux.HandleFunc("/api/achievements", wrap(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			achievementHandler.HandleList(w, r)
-		} else {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	}))
+
 }
 

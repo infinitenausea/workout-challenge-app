@@ -418,3 +418,40 @@
   3. В `internal/handlers/router.go` добавить обработку `PATCH` для `/api/challenges/:id`.
 * **Ограничения:**
   * Убедиться, что обновляются только те поля, которые были переданы. Использовать `UPDATE ... COALESCE` или динамический SQL.
+
+---
+
+## Epic: US-14 Ачивки внутри челленджа
+
+**Цель:** Реализовать логику выдачи и получения ачивок (8 штук) с привязкой к конкретному челленджу, а не глобально к пользователю.
+
+### Задача 16: Миграция БД и обновление моделей для ачивок
+* **Файлы:** Скрипт миграции (или ручное обновление схемы), `internal/models/achievement.go`
+* **Описание:**
+  1. Изменить таблицу `user_achievements`:
+     * Добавить колонку `challenge_id` (foreign key на `challenges.id`, `ON DELETE CASCADE`).
+     * Изменить уникальный индекс с `UNIQUE(user_id, achievement_code)` на `UNIQUE(user_id, challenge_id, achievement_code)`.
+  2. Обновить структуру `Achievement` в `models`: добавить поле `ChallengeID`.
+
+### Задача 17: Обновление Движка Ачивок (8 ачивок)
+* **Файлы:** `internal/database/achievement.go`
+* **Описание:**
+  1. Изменить метод проверки ачивок на `CheckAndUnlockAchievements(ctx, userID, challengeID, newProgress, targetValue int) ([]string, error)`.
+  2. Внутри метода реализовать проверку 8 ачивок:
+     * `first_step` (существует тренировка для данного `challenge_id`)
+     * `equator` (`newProgress >= targetValue / 2`)
+     * `hero` (`newProgress >= targetValue` и `end_date` не прошла)
+     * `stability` (тренировки 3 дня подряд в данном челлендже)
+     * `power_start` (разовая добавленная тренировка $\ge$ 25% от цели)
+     * `overachiever` (`newProgress >= targetValue * 1.2`)
+     * `early_bird` (добавление тренировки с 5:00 до 8:59)
+     * `final_spurt` (достижение 100% ровно в `end_date`)
+  3. Обновить `unlockAchievement`, чтобы он принимал и записывал `challenge_id`.
+
+### Задача 18: API для получения ачивок челленджа
+* **Файлы:** `internal/handlers/achievement_handler.go`, `internal/handlers/router.go`
+* **Описание:**
+  1. Реализовать `GET /api/challenges/:id/achievements`.
+  2. Получать ачивки конкретного пользователя для конкретного челленджа из `user_achievements`.
+  3. Зарегистрировать роут в `router.go` (удалив старый глобальный роут `/api/achievements`, если он больше не нужен).
+* **Ограничения:** Не забыть возвращать `[]` вместо `null`, если ачивок нет.

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"workout-challenge-app/internal/database"
 )
@@ -26,11 +28,23 @@ func (h *AchievementHandler) getUserID(r *http.Request) string {
 	return userID
 }
 
-// HandleList handles GET /api/achievements
+// HandleList handles GET /api/challenges/:id/achievements
 func (h *AchievementHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 	userID := h.getUserID(r)
 
-	achievements, err := h.db.GetUserAchievements(r.Context(), userID)
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 4 || pathParts[len(pathParts)-1] != "achievements" {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+
+	challengeID, err := strconv.Atoi(pathParts[2])
+	if err != nil {
+		http.Error(w, "Invalid challenge ID", http.StatusBadRequest)
+		return
+	}
+
+	achievements, err := h.db.GetChallengeAchievements(r.Context(), userID, challengeID)
 	if err != nil {
 		log.Printf("HandleList achievements: DB error: %v\n", err)
 		http.Error(w, "Failed to retrieve achievements", http.StatusInternalServerError)

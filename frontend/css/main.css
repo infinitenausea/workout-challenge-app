@@ -434,4 +434,47 @@ input:focus, select:focus, textarea:focus {
   to { width: 0%; }
 }
 
+/* Achievements Grid in Challenge Detail */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.achievement-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  padding: 8px;
+  background-color: var(--tg-theme-secondary-bg-color);
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+}
+
+.achievement-grid-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.achievement-grid-item .ach-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.achievement-grid-item .ach-name {
+  font-size: 10px;
+  color: var(--tg-theme-hint-color);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.achievement-grid-item.locked {
+  opacity: 0.3;
+  filter: grayscale(100%);
+}
+
+
 
