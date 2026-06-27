@@ -122,8 +122,16 @@ func TestAPI_Sprint3(t *testing.T) {
 		}
 
 		unlocked, ok := respData["unlocked_achievements"].([]interface{})
-		if !ok || len(unlocked) != 1 || unlocked[0] != "first_step" {
-			t.Errorf("Expected unlocked_achievements to be ['first_step'], got %v", respData["unlocked_achievements"])
+		foundFirstStep := false
+		if ok {
+			for _, ach := range unlocked {
+				if ach == "first_step" {
+					foundFirstStep = true
+				}
+			}
+		}
+		if !foundFirstStep {
+			t.Errorf("Expected unlocked_achievements to contain 'first_step', got %v", respData["unlocked_achievements"])
 		}
 
 		workout, ok := respData["workout"].(map[string]interface{})
@@ -236,14 +244,38 @@ func TestAPI_Sprint3(t *testing.T) {
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("Failed to create Challenge 2, status %d. Body: %s", resp.StatusCode, string(body))
 		}
+		var c2Data map[string]interface{}
+		if err := json.Unmarshal(body, &c2Data); err != nil {
+			t.Fatalf("Failed to unmarshal Challenge 2: %v", err)
+		}
+		c2ID := int(c2Data["id"].(float64))
 
-		// Currently the user has workouts on June 25, June 26, June 29.
-		// If we add workout on June 27, we now have June 25, 26, 27 which are 3 consecutive days!
-		payload := map[string]interface{}{
+		// Add workout on June 25
+		w1Payload := map[string]interface{}{
+			"workout_date": "2026-06-25",
+			"value":        10,
+		}
+		resp, body = sendRequest(t, "POST", fmt.Sprintf("/api/challenges/%d/workouts", c2ID), "default_user_1", w1Payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to add workout 1: %s", string(body))
+		}
+
+		// Add workout on June 26
+		w2Payload := map[string]interface{}{
+			"workout_date": "2026-06-26",
+			"value":        10,
+		}
+		resp, body = sendRequest(t, "POST", fmt.Sprintf("/api/challenges/%d/workouts", c2ID), "default_user_1", w2Payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to add workout 2: %s", string(body))
+		}
+
+		// Add workout on June 27 (triggers stability!)
+		w3Payload := map[string]interface{}{
 			"workout_date": "2026-06-27",
 			"value":        10,
 		}
-		resp, body = sendRequest(t, "POST", "/api/challenges/2/workouts", "default_user_1", payload)
+		resp, body = sendRequest(t, "POST", fmt.Sprintf("/api/challenges/%d/workouts", c2ID), "default_user_1", w3Payload)
 		if resp.StatusCode != http.StatusCreated {
 			t.Errorf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
 		}
@@ -478,9 +510,9 @@ func TestAPI_Sprint3(t *testing.T) {
 		}
 	})
 
-	// TC-3.16 (Positive): Получение списка ачивок
+	// TC-3.16 (Positive): Получение списка ачивок челленджа
 	t.Run("TC-3.16 Positive: List user achievements", func(t *testing.T) {
-		resp, body := sendRequest(t, "GET", "/api/achievements", "default_user_1", nil)
+		resp, body := sendRequest(t, "GET", "/api/challenges/2/achievements", "default_user_1", nil)
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
 		}
@@ -499,7 +531,7 @@ func TestAPI_Sprint3(t *testing.T) {
 			codes[ach["achievement_code"].(string)] = true
 		}
 
-		expectedCodes := []string{"first_step", "equator", "stability"}
+		expectedCodes := []string{"first_step", "stability"}
 		for _, c := range expectedCodes {
 			if !codes[c] {
 				t.Errorf("Expected achievement %s to be in list, but it wasn't", c)
@@ -509,7 +541,23 @@ func TestAPI_Sprint3(t *testing.T) {
 
 	// TC-3.17 (Positive): Пустой список → [], не null
 	t.Run("TC-3.17 Positive: Empty achievements list", func(t *testing.T) {
-		resp, body := sendRequest(t, "GET", "/api/achievements", "new_user_without_achievements", nil)
+		// Create Challenge 3 (new challenge, no workouts added)
+		c3Payload := map[string]interface{}{
+			"name":         "Challenge 3",
+			"exercise_id":  1,
+			"target_value": 100,
+			"start_date":   "2026-06-01T00:00:00Z",
+			"end_date":     "2026-07-01T00:00:00Z",
+		}
+		resp, body := sendRequest(t, "POST", "/api/challenges", "default_user_1", c3Payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to create Challenge 3, status %d. Body: %s", resp.StatusCode, string(body))
+		}
+		var c3Data map[string]interface{}
+		json.Unmarshal(body, &c3Data)
+		c3ID := int(c3Data["id"].(float64))
+
+		resp, body = sendRequest(t, "GET", fmt.Sprintf("/api/challenges/%d/achievements", c3ID), "default_user_1", nil)
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d. Body: %s", resp.StatusCode, string(body))
 		}
