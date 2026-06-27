@@ -160,6 +160,7 @@ export class ChallengeDetail {
       <div class="challenge-detail">
         <div class="challenge-detail-header">
           <button id="back-btn" class="secondary btn-small">← Назад</button>
+          ${c.status === 'active' ? '<button id="edit-challenge-btn" class="secondary btn-small">✏️ Редактировать</button>' : ''}
           <span class="challenge-status ${c.status === 'failed' ? 'badge-failed' : ''}">${c.status === 'active' ? 'Активен' : c.status === 'completed' ? 'Завершен' : 'Провален'}</span>
         </div>
 
@@ -203,6 +204,15 @@ export class ChallengeDetail {
     this.container.querySelector('#back-btn').addEventListener('click', () => {
       store.navigate('dashboard');
     });
+
+    if (c.status === 'active') {
+      const editBtn = this.container.querySelector('#edit-challenge-btn');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          store.navigate('challenge-form', { editMode: true, challengeId: c.id });
+        });
+      }
+    }
 
     if (!isInactive) {
       this.container.querySelector('#add-workout-btn').addEventListener('click', () => {

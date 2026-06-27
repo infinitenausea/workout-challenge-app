@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"workout-challenge-app/internal/models"
@@ -119,6 +120,30 @@ func (db *DBWrapper) DeleteChallenge(ctx context.Context, userID string, id int)
 	`, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete challenge: %w", err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return nil
+}
+
+// UpdateChallenge updates specific fields of a challenge.
+func (db *DBWrapper) UpdateChallenge(ctx context.Context, userID string, id int, name *string, targetValue *int, startDate *time.Time, endDate *time.Time, status *string) error {
+	query := `
+		UPDATE challenges
+		SET name = COALESCE($3, name),
+		    target_value = COALESCE($4, target_value),
+		    start_date = COALESCE($5, start_date),
+		    end_date = COALESCE($6, end_date),
+		    status = COALESCE($7, status)
+		WHERE id = $1 AND user_id = $2
+	`
+
+	tag, err := db.Pool.Exec(ctx, query, id, userID, name, targetValue, startDate, endDate, status)
+	if err != nil {
+		return fmt.Errorf("failed to update challenge: %w", err)
 	}
 
 	if tag.RowsAffected() == 0 {

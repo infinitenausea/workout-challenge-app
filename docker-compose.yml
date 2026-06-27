@@ -12,7 +12,7 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data
     networks:
       - db-network
     healthcheck:
@@ -60,6 +60,6 @@ networks:
     driver: bridge
 
 volumes:
-  pgdata:
   caddy_data:
   caddy_config:
+

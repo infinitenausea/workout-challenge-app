@@ -54,6 +54,8 @@ func SetupRoutes(mux *http.ServeMux, db *database.DBWrapper, cfg *config.Config)
 			switch r.Method {
 			case http.MethodGet:
 				challengeHandler.HandleGetByID(w, r)
+			case http.MethodPatch:
+				challengeHandler.HandleUpdate(w, r)
 			case http.MethodDelete:
 				challengeHandler.HandleDelete(w, r)
 			default:

@@ -130,6 +130,23 @@ class Store {
     });
   }
 
+  // Action: Update details of a challenge in the list
+  updateChallengeInList(updatedChallenge) {
+    const updatedChallenges = this.state.challenges.map(c => 
+      c.id === updatedChallenge.id ? updatedChallenge : c
+    );
+
+    let updatedCurrentChallenge = this.state.currentChallenge;
+    if (updatedCurrentChallenge && updatedCurrentChallenge.id === updatedChallenge.id) {
+      updatedCurrentChallenge = updatedChallenge;
+    }
+
+    this.setState({
+      challenges: updatedChallenges,
+      currentChallenge: updatedCurrentChallenge
+    });
+  }
+
   // Action: Set achievements (can be achievement objects or codes)
   setAchievements(achievements) {
     const codes = achievements.map(a => typeof a === 'object' ? a.achievement_code : a);

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"workout-challenge-app/internal/database"
@@ -178,4 +179,132 @@ func (h *ChallengeHandler) HandleDelete(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
+}
+
+// ChallengeUpdatePayload represents the fields that can be updated
+type ChallengeUpdatePayload struct {
+	Name        *string    `json:"name,omitempty"`
+	TargetValue *int       `json:"target_value,omitempty"`
+	StartDate   *time.Time `json:"start_date,omitempty"`
+	EndDate     *time.Time `json:"end_date,omitempty"`
+}
+
+// HandleUpdate handles the PATCH /api/challenges/:id endpoint
+func (h *ChallengeHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
+	userID := h.getUserID(r)
+
+	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "Invalid challenge ID", http.StatusBadRequest)
+		return
+	}
+
+	idStr := pathParts[2]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		log.Printf("Invalid challenge ID format: %s\n", idStr)
+		http.Error(w, "Invalid challenge ID format", http.StatusBadRequest)
+		return
+	}
+
+	var payload ChallengeUpdatePayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		log.Printf("Invalid request body for updating challenge: %v\n", err)
+		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch current challenge
+	challenge, err := h.db.GetChallengeByID(r.Context(), userID, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, "Challenge not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Database error fetching challenge for update: %v\n", err)
+		http.Error(w, "Failed to retrieve challenge", http.StatusInternalServerError)
+		return
+	}
+
+	// Validate status active
+	if challenge.Status != "active" {
+		http.Error(w, "Cannot update a non-active challenge", http.StatusBadRequest)
+		return
+	}
+
+	// Validate target_value >= 1
+	if payload.TargetValue != nil && *payload.TargetValue < 1 {
+		http.Error(w, "Target value must be at least 1", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().Truncate(24 * time.Hour)
+	currentStart := challenge.StartDate.Truncate(24 * time.Hour)
+
+	// Validate start_date
+	if payload.StartDate != nil {
+		newStart := payload.StartDate.Truncate(24 * time.Hour)
+		if !newStart.Equal(currentStart) {
+			if currentStart.Before(now) || currentStart.Equal(now) {
+				http.Error(w, "Cannot change start_date after the challenge has started", http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	// Validate end_date
+	if payload.EndDate != nil {
+		newEnd := payload.EndDate.Truncate(24 * time.Hour)
+		if newEnd.Before(now) {
+			http.Error(w, "End date cannot be in the past", http.StatusBadRequest)
+			return
+		}
+		
+		effectiveStart := currentStart
+		if payload.StartDate != nil {
+			effectiveStart = payload.StartDate.Truncate(24 * time.Hour)
+		}
+		if effectiveStart.After(newEnd) {
+			http.Error(w, "End date cannot be before start date", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Determine new status if target_value is updated
+	var status *string
+	if payload.TargetValue != nil && *payload.TargetValue <= challenge.CurrentProgress {
+		completed := "completed"
+		status = &completed
+	}
+
+	// Update in database
+	err = h.db.UpdateChallenge(
+		r.Context(),
+		userID,
+		id,
+		payload.Name,
+		payload.TargetValue,
+		payload.StartDate,
+		payload.EndDate,
+		status,
+	)
+
+	if err != nil {
+		log.Printf("Database error updating challenge: %v\n", err)
+		http.Error(w, "Failed to update challenge", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch updated challenge to return
+	updatedChallenge, err := h.db.GetChallengeByID(r.Context(), userID, id)
+	if err != nil {
+		log.Printf("Error fetching updated challenge: %v\n", err)
+		http.Error(w, "Failed to retrieve updated challenge", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(updatedChallenge); err != nil {
+		log.Printf("Error encoding response for updated challenge: %v\n", err)
+	}
 }

@@ -96,6 +96,13 @@ class ApiClient {
     });
   }
 
+  updateChallenge(challengeId, payload) {
+    return this._request(`/challenges/${challengeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  }
+
   deleteChallenge(challengeId) {
     return this._request(`/challenges/${challengeId}`, {
       method: 'DELETE'
