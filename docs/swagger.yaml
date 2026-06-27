@@ -1,0 +1,201 @@
+basePath: /api
+definitions:
+  handlers.ChallengeUpdatePayload:
+    properties:
+      end_date:
+        type: string
+      name:
+        type: string
+      start_date:
+        type: string
+      target_value:
+        type: integer
+    type: object
+  models.Challenge:
+    properties:
+      current_progress:
+        type: integer
+      end_date:
+        type: string
+      exercise_id:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+      target_value:
+        type: integer
+      user_id:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API Server for Telegram Mini App Workout Challenge
+  title: Workout Challenge App API
+  version: "1.0"
+paths:
+  /challenges:
+    get:
+      description: Retrieves all workout challenges for the user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Challenge'
+            type: array
+        "500":
+          description: Failed to retrieve challenges
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Get all challenges
+      tags:
+      - challenges
+    post:
+      consumes:
+      - application/json
+      description: Creates a new workout challenge for the user
+      parameters:
+      - description: Challenge object
+        in: body
+        name: challenge
+        required: true
+        schema:
+          $ref: '#/definitions/models.Challenge'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Challenge'
+        "400":
+          description: Invalid JSON payload
+          schema:
+            type: string
+        "500":
+          description: Failed to create challenge
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new challenge
+      tags:
+      - challenges
+  /challenges/{id}:
+    delete:
+      description: Deletes a specific workout challenge by its ID
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Invalid challenge ID format
+          schema:
+            type: string
+        "404":
+          description: Challenge not found
+          schema:
+            type: string
+        "500":
+          description: Failed to delete challenge
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a challenge
+      tags:
+      - challenges
+    get:
+      description: Retrieves a specific workout challenge by its ID
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Challenge'
+        "400":
+          description: Invalid challenge ID format
+          schema:
+            type: string
+        "404":
+          description: Challenge not found
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Get a challenge by ID
+      tags:
+      - challenges
+    patch:
+      consumes:
+      - application/json
+      description: Updates a specific workout challenge by its ID
+      parameters:
+      - description: Challenge ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ChallengeUpdatePayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Challenge'
+        "400":
+          description: Invalid JSON payload
+          schema:
+            type: string
+        "404":
+          description: Challenge not found
+          schema:
+            type: string
+        "500":
+          description: Failed to retrieve challenge
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+      summary: Update a challenge
+      tags:
+      - challenges
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,5 +1,10 @@
 # 🏋️ Workout Challenge Tracker
 
+![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat&logo=postgresql)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+
 Telegram Mini App для спортивной мотивации: создавайте челленджи, логируйте тренировки, отслеживайте прогресс и зарабатывайте достижения — прямо внутри Telegram.
 
 ## Tech Stack
@@ -14,10 +19,16 @@ Telegram Mini App для спортивной мотивации: создава
 
 ## Архитектура
 
-```
-Telegram → Caddy (HTTPS) → Go API (:8080) → PostgreSQL
-                             ↓
-                      Frontend (статика)
+```mermaid
+graph TD
+    Client[Telegram Mini App Client] --> Caddy[Caddy Reverse Proxy HTTPS]
+    Caddy --> API[Go API Server :8080]
+    API --> DB[(PostgreSQL 16)]
+    
+    subgraph "Frontend Static"
+        UI[Vanilla HTML/JS/CSS]
+    end
+    API -. Serves .-> UI
 ```
 
 - **Аутентификация**: Telegram `initData` передаётся в заголовке `Authorization: Bearer <initData>`. Middleware валидирует HMAC-подпись через бот-токен и извлекает `user_id`.
@@ -67,20 +78,24 @@ Telegram → Caddy (HTTPS) → Go API (:8080) → PostgreSQL
 
 4. Зарегистрируйте URL вашего Mini App в [@BotFather](https://t.me/BotFather).
 
-### Локальная разработка
+### Локальная разработка (с использованием Makefile)
 
 Для запуска без Telegram (режим `development`):
 
 ```bash
-# 1. Поднять только базу данных
-docker compose up -d db
+# 1. Запустить БД и сервер одной командой
+make run
 
-# 2. Запустить Go-сервер
-go run main.go
-
-# 3. Открыть в браузере
-# http://localhost:8080/
+# Дополнительные команды:
+# make test     - Запуск тестов
+# make lint     - Запуск линтера
+# make swagger  - Генерация Swagger-документации
+# make clean    - Остановка контейнеров и удаление бинарников
 ```
+
+После старта `make run`, откройте в браузере:
+- Приложение: `http://localhost:8080/`
+- Swagger UI (API Docs): `http://localhost:8080/api/swagger/index.html`
 
 В режиме разработки авторизация через Telegram отключена — можно тестировать API напрямую, передавая `X-User-Id` в заголовке запроса.
 

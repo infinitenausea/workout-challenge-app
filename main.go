@@ -8,7 +8,18 @@ import (
 	"workout-challenge-app/internal/database"
 	"workout-challenge-app/internal/handlers"
 	"workout-challenge-app/internal/workers"
+
+	_ "workout-challenge-app/docs" // Swagger generated docs
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
+
+// @title Workout Challenge App API
+// @version 1.0
+// @description API Server for Telegram Mini App Workout Challenge
+// @BasePath /api
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 
 func main() {
 	log.Println("Starting Workout Challenge Tracker Backend...")
@@ -45,6 +56,11 @@ func main() {
 
 	// Setup API routes
 	handlers.SetupRoutes(mux, db, cfg)
+
+	// Swagger docs
+	mux.HandleFunc("/api/swagger/", httpSwagger.Handler(
+		httpSwagger.URL("/api/swagger/doc.json"),
+	))
 
 	// Serve frontend static files
 	fs := http.FileServer(http.Dir("./frontend"))

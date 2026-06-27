@@ -34,6 +34,17 @@ func (h *ChallengeHandler) getUserID(r *http.Request) string {
 }
 
 // HandleCreate handles the POST /api/challenges endpoint
+// @Summary Create a new challenge
+// @Description Creates a new workout challenge for the user
+// @Tags challenges
+// @Accept json
+// @Produce json
+// @Param challenge body models.Challenge true "Challenge object"
+// @Success 201 {object} models.Challenge
+// @Failure 400 {string} string "Invalid JSON payload"
+// @Failure 500 {string} string "Failed to create challenge"
+// @Router /challenges [post]
+// @Security ApiKeyAuth
 func (h *ChallengeHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	userID := h.getUserID(r)
 
@@ -83,6 +94,14 @@ func (h *ChallengeHandler) HandleCreate(w http.ResponseWriter, r *http.Request) 
 }
 
 // HandleList handles the GET /api/challenges endpoint
+// @Summary Get all challenges
+// @Description Retrieves all workout challenges for the user
+// @Tags challenges
+// @Produce json
+// @Success 200 {array} models.Challenge
+// @Failure 500 {string} string "Failed to retrieve challenges"
+// @Router /challenges [get]
+// @Security ApiKeyAuth
 func (h *ChallengeHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 	userID := h.getUserID(r)
 
@@ -100,6 +119,16 @@ func (h *ChallengeHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleGetByID handles the GET /api/challenges/:id endpoint
+// @Summary Get a challenge by ID
+// @Description Retrieves a specific workout challenge by its ID
+// @Tags challenges
+// @Produce json
+// @Param id path int true "Challenge ID"
+// @Success 200 {object} models.Challenge
+// @Failure 400 {string} string "Invalid challenge ID format"
+// @Failure 404 {string} string "Challenge not found"
+// @Router /challenges/{id} [get]
+// @Security ApiKeyAuth
 func (h *ChallengeHandler) HandleGetByID(w http.ResponseWriter, r *http.Request) {
 	userID := h.getUserID(r)
 
@@ -147,6 +176,17 @@ func (h *ChallengeHandler) HandleGetByID(w http.ResponseWriter, r *http.Request)
 }
 
 // HandleDelete handles the DELETE /api/challenges/:id endpoint
+// @Summary Delete a challenge
+// @Description Deletes a specific workout challenge by its ID
+// @Tags challenges
+// @Produce json
+// @Param id path int true "Challenge ID"
+// @Success 200 {object} map[string]bool
+// @Failure 400 {string} string "Invalid challenge ID format"
+// @Failure 404 {string} string "Challenge not found"
+// @Failure 500 {string} string "Failed to delete challenge"
+// @Router /challenges/{id} [delete]
+// @Security ApiKeyAuth
 func (h *ChallengeHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	userID := h.getUserID(r)
 
@@ -190,6 +230,19 @@ type ChallengeUpdatePayload struct {
 }
 
 // HandleUpdate handles the PATCH /api/challenges/:id endpoint
+// @Summary Update a challenge
+// @Description Updates a specific workout challenge by its ID
+// @Tags challenges
+// @Accept json
+// @Produce json
+// @Param id path int true "Challenge ID"
+// @Param payload body ChallengeUpdatePayload true "Update payload"
+// @Success 200 {object} models.Challenge
+// @Failure 400 {string} string "Invalid JSON payload"
+// @Failure 404 {string} string "Challenge not found"
+// @Failure 500 {string} string "Failed to retrieve challenge"
+// @Router /challenges/{id} [patch]
+// @Security ApiKeyAuth
 func (h *ChallengeHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	userID := h.getUserID(r)
 
