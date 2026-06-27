@@ -3,5 +3,5 @@ workout.t-labs.site {
 }
 
 beautytma.t-labs.site {
-    reverse_proxy 127.0.0.1:8081
+    reverse_proxy 91.99.109.40:8081
 }
