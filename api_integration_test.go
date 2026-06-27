@@ -236,7 +236,7 @@ func TestAPI_Sprint3(t *testing.T) {
 		c2Payload := map[string]interface{}{
 			"name":        "Challenge 2",
 			"exercise_id": 1,
-			"target_value": 100,
+			"target_value": 200,
 			"start_date":  "2026-06-01T00:00:00Z",
 			"end_date":    "2026-07-01T00:00:00Z",
 		}
@@ -277,9 +277,9 @@ func TestAPI_Sprint3(t *testing.T) {
 		}
 		resp, body = sendRequest(t, "POST", fmt.Sprintf("/api/challenges/%d/workouts", c2ID), "default_user_1", w3Payload)
 		if resp.StatusCode != http.StatusCreated {
-			t.Errorf("Expected status 201, got %d. Body: %s", resp.StatusCode, string(body))
+			t.Fatalf("Failed to add workout 3: %s", string(body))
 		}
-		
+
 		var respData map[string]interface{}
 		json.Unmarshal(body, &respData)
 		
@@ -294,6 +294,16 @@ func TestAPI_Sprint3(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("Expected stability to be unlocked, got %v", respData["unlocked_achievements"])
+		}
+
+		// Add workout on June 28 (extra to preserve stability when one is deleted later)
+		w4Payload := map[string]interface{}{
+			"workout_date": "2026-06-28",
+			"value":        10,
+		}
+		resp, body = sendRequest(t, "POST", fmt.Sprintf("/api/challenges/%d/workouts", c2ID), "default_user_1", w4Payload)
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("Failed to add workout 4: %s", string(body))
 		}
 	})
 
