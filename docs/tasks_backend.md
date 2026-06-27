@@ -398,3 +398,23 @@
 * **Файлы:** `internal/handlers/*`, `internal/database/*`
 * **Описание:** Провести полное код-ревью реализации MVP и интеграции с Telegram (US-9). Проверить безопасность валидации `initData`, отсутствие хардкода (особенно `default_user_1`), соблюдение принципов Loose Coupling. Составить список технического долга и исправить критические замечания.
 * **Ограничения:** Уделить особое внимание SQL-транзакциям при обновлении статусов челленджей.
+
+---
+
+## Epic: US-13 Редактирование челленджа
+
+**Цель:** Реализовать эндпоинт частичного обновления челленджа с проверкой бизнес-правил.
+
+### Задача 15: Реализация PATCH /api/challenges/:id
+* **Файлы:** `internal/handlers/challenge_handler.go`, `internal/database/challenge.go`, `internal/handlers/router.go`
+* **Описание:**
+  1. В `internal/database/challenge.go` добавить метод `UpdateChallenge(ctx, userID, id, updates)`.
+  2. В `internal/handlers/challenge_handler.go` реализовать `HandleUpdate(w, r)`.
+     * Валидировать, что челлендж активен (статус `active`).
+     * Игнорировать поле `exercise_id`, если оно передано.
+     * Валидировать даты: `end_date` не раньше текущей даты, `start_date` можно менять только если она ещё не наступила.
+     * Валидировать `target_value` >= 1.
+     * Если новое `target_value` <= `current_progress`, то в обновлении сразу менять `status = 'completed'`.
+  3. В `internal/handlers/router.go` добавить обработку `PATCH` для `/api/challenges/:id`.
+* **Ограничения:**
+  * Убедиться, что обновляются только те поля, которые были переданы. Использовать `UPDATE ... COALESCE` или динамический SQL.
