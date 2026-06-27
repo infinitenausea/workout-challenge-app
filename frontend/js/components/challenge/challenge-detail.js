@@ -80,6 +80,14 @@ export class ChallengeDetail {
           response.challenge.current_progress,
           response.challenge.status
         );
+        
+        try {
+          const achievements = await api.getChallengeAchievements(challengeId);
+          store.setCurrentChallengeAchievements(achievements);
+        } catch (achErr) {
+          console.error('Failed to reload challenge achievements:', achErr);
+        }
+
         this.showToast('Тренировка успешно удалена', 'success');
       }
     } catch (error) {
